@@ -1,0 +1,12 @@
+/services /services.html 200
+/accounts /accounts.html 200
+/orders /orders.html 200
+/why-us /why-us.html 200
+/faq /faq.html 200
+/order /order.html 200
+/admin /admin.html 200
+/login /login.html 200
+/signup /signup.html 200
+/privacy /privacy.html 200
+/thank-you /thank-you.html 200
+/* /404.html 404

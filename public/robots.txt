@@ -1,0 +1,9 @@
+# Subly Digital Hub - Robots Exclusion Protocol
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /admin
+Disallow: /dist/admin.html
+
+# Crawl-delay: 1
+Sitemap: https://subly.store/sitemap.xml

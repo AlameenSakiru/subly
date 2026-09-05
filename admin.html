@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subly Admin Control Panel — Management Dashboard</title>
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+
+  <!-- Fonts: Outfit & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="admin-body">
+  
+  <!-- Background Glows -->
+  <div class="flyer-bg-ambient">
+    <div class="bg-glow-spot glow-spot-1"></div>
+    <div class="bg-glow-spot glow-spot-2"></div>
+  </div>
+
+  <!-- 1. ADMIN PIN LOGIN SCREEN (Visible when locked) -->
+  <div id="admin-auth-screen" class="admin-auth-wrapper">
+    <div class="admin-auth-card">
+      <div class="brand-logo-group" style="justify-content: center; margin-bottom: 20px;">
+        <div class="brand-mark-box">
+          <svg viewBox="0 0 36 36" width="30" height="30" fill="none">
+            <rect x="5" y="8" width="16" height="8" rx="4" transform="rotate(-35 5 8)" fill="#22C55E"/>
+            <rect x="17" y="17" width="16" height="8" rx="4" transform="rotate(-35 17 17)" fill="#14532D"/>
+          </svg>
+        </div>
+        <span class="brand-name" style="font-size: 1.6rem;">subly</span>
+      </div>
+
+      <div class="admin-lock-icon-circle">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#16A34A" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      </div>
+
+      <h1 class="admin-auth-title">Admin Management Gate</h1>
+      <p class="admin-auth-desc">Enter your 4-digit security PIN to access the store management console.</p>
+
+      <form id="admin-login-form" onsubmit="return false;" class="admin-auth-form">
+        <div class="form-group-compact" style="margin-bottom: 16px;">
+          <input type="password" id="admin-pin-input" class="form-control-compact admin-pin-input" placeholder="Enter PIN (Default: 8492)" maxlength="8" autocomplete="current-password" autofocus required />
+        </div>
+        <button type="submit" id="admin-login-btn" class="btn btn-forest btn-lg" style="width: 100%;">
+          <span>Unlock Admin Panel &rarr;</span>
+        </button>
+        <div id="admin-auth-error" class="admin-auth-error-msg" style="display: none;">
+          Incorrect PIN. Please try again.
+        </div>
+      </form>
+
+      <div style="margin-top: 24px; text-align: center;">
+        <a href="index.html" class="order-back-link" style="font-size: 0.85rem;">&larr; Back to Storefront</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ADMIN MAIN DASHBOARD (Visible when authenticated) -->
+  <div id="admin-dashboard-screen" class="admin-dashboard-wrapper" style="display: none;">
+    
+    <!-- Admin Topbar Header -->
+    <header class="admin-topbar">
+      <div class="admin-topbar-inner">
+        <div class="admin-brand-area">
+          <a href="index.html" class="nav-brand" title="View Storefront">
+            <div class="brand-logo-group">
+              <div class="brand-mark-box" style="width: 28px; height: 28px;">
+                <svg viewBox="0 0 36 36" width="22" height="22" fill="none">
+                  <rect x="5" y="8" width="16" height="8" rx="4" transform="rotate(-35 5 8)" fill="#22C55E"/>
+                  <rect x="17" y="17" width="16" height="8" rx="4" transform="rotate(-35 17 17)" fill="#14532D"/>
+                </svg>
+              </div>
+              <span class="brand-name" style="font-size: 1.35rem;">subly</span>
+              <span class="admin-tag-badge">ADMIN CONSOLE</span>
+            </div>
+          </a>
+        </div>
+
+        <div class="admin-topbar-actions">
+          <a href="index.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="Open live customer store in new tab">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <span>Live Storefront</span>
+          </a>
+
+          <button type="button" id="admin-logout-btn" class="btn btn-secondary btn-sm" title="Lock Admin Panel">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Lock</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Admin Navigation Tabs -->
+    <div class="admin-nav-bar">
+      <div class="admin-nav-container">
+        <button type="button" class="admin-tab-btn active" data-tab="overview">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Overview & Orders</span>
+        </button>
+
+        <button type="button" class="admin-tab-btn" data-tab="analytics">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Analytics & Revenue</span>
+        </button>
+
+        <button type="button" class="admin-tab-btn" data-tab="customers">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Registered Customers (<span id="admin-customer-count-tab">0</span>)</span>
+        </button>
+        
+        <button type="button" class="admin-tab-btn" data-tab="products">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          <span>Subscriptions Catalog (<span id="admin-product-count-tab">18</span>)</span>
+        </button>
+
+        <button type="button" class="admin-tab-btn" data-tab="accounts">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg>
+          <span>X Accounts Inventory (<span id="admin-accounts-count-tab">5</span>)</span>
+        </button>
+
+        <button type="button" class="admin-tab-btn" data-tab="settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Store Settings & Controls</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="admin-main-container">
+      
+      <!-- TAB 1: OVERVIEW & REAL-TIME ORDERS STREAM -->
+      <section id="admin-tab-overview" class="admin-tab-pane active">
+        
+        <!-- Metrics Tiles -->
+        <div class="admin-metrics-grid">
+          <div class="admin-metric-card">
+            <div class="admin-metric-icon" style="background: rgba(34, 197, 94, 0.15); color: #16A34A;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            </div>
+            <div class="admin-metric-info">
+              <span class="admin-metric-label">Total Dispatched Orders</span>
+              <div class="admin-metric-val" id="metric-total-orders">0</div>
+            </div>
+          </div>
+
+          <div class="admin-metric-card">
+            <div class="admin-metric-icon" style="background: rgba(59, 130, 246, 0.15); color: #2563EB;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <div class="admin-metric-info">
+              <span class="admin-metric-label">Estimated Sales Value</span>
+              <div class="admin-metric-val" id="metric-est-revenue">₦0</div>
+            </div>
+          </div>
+
+          <div class="admin-metric-card">
+            <div class="admin-metric-icon" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            </div>
+            <div class="admin-metric-info">
+              <span class="admin-metric-label">Registered Customers</span>
+              <div class="admin-metric-val" id="metric-total-customers">0</div>
+            </div>
+          </div>
+
+          <div class="admin-metric-card">
+            <div class="admin-metric-icon" style="background: rgba(245, 158, 11, 0.15); color: #D97706;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg>
+            </div>
+            <div class="admin-metric-info">
+              <span class="admin-metric-label">X Accounts in Stock</span>
+              <div class="admin-metric-val" id="metric-active-accounts">5</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Customer Order Activity Stream -->
+        <div class="admin-card-box">
+          <div class="admin-card-header">
+            <div>
+              <h2 class="admin-card-title">Real-Time Customer Order Feed</h2>
+              <p class="admin-card-desc">Live log of all order slips generated on the website with customer details and fulfillment status.</p>
+            </div>
+            <button type="button" id="admin-refresh-orders-btn" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div class="mobile-table-hint">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            <span>Swipe horizontally to view full order details</span>
+          </div>
+
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Order Ref</th>
+                  <th>Date & Time</th>
+                  <th>Customer Name</th>
+                  <th>WhatsApp Contact</th>
+                  <th>Plan Ordered</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-orders-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: ANALYTICS & REVENUE BREAKDOWN -->
+      <section id="admin-tab-analytics" class="admin-tab-pane">
+        <div class="admin-card-box" style="margin-bottom: 24px;">
+          <div class="admin-card-header">
+            <div>
+              <h2 class="admin-card-title">Storefront Analytics & Sales Insights</h2>
+              <p class="admin-card-desc">Deep breakdown of store revenue, subscription category performance, and customer lifetime value.</p>
+            </div>
+          </div>
+
+          <div class="admin-metrics-grid" style="margin-bottom: 20px;">
+            <div class="admin-metric-card">
+              <div class="admin-metric-icon" style="background: rgba(34, 197, 94, 0.15); color: #16A34A;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              </div>
+              <div class="admin-metric-info">
+                <span class="admin-metric-label">Average Order Value (AOV)</span>
+                <div class="admin-metric-val" id="analytics-aov">₦0</div>
+              </div>
+            </div>
+
+            <div class="admin-metric-card">
+              <div class="admin-metric-icon" style="background: rgba(59, 130, 246, 0.15); color: #2563EB;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+              <div class="admin-metric-info">
+                <span class="admin-metric-label">Warranty Active Ratio</span>
+                <div class="admin-metric-val" id="analytics-active-ratio">100%</div>
+              </div>
+            </div>
+
+            <div class="admin-metric-card">
+              <div class="admin-metric-icon" style="background: rgba(34, 197, 94, 0.15); color: #16A34A;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              </div>
+              <div class="admin-metric-info">
+                <span class="admin-metric-label">Warranty Guarantee</span>
+                <div class="admin-metric-val" id="analytics-warranty-rate">100% Active</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Breakdown Progress Bars -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 22px; margin-top: 20px;">
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-heading); margin-bottom: 16px;">Sales Volume by Category</h3>
+            <div id="analytics-category-breakdown">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: REGISTERED CUSTOMERS DIRECTORY (CRM) -->
+      <section id="admin-tab-customers" class="admin-tab-pane">
+        <div class="admin-card-box">
+          <div class="admin-card-header">
+            <div>
+              <h2 class="admin-card-title">Registered Customers & Subscriptions Directory</h2>
+              <p class="admin-card-desc">All user accounts registered on Subly with active subscriptions, exact expiration dates, and 1-click WhatsApp renewal messaging.</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" id="admin-add-customer-btn" class="btn btn-forest btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add Customer</span>
+              </button>
+              <button type="button" id="admin-export-customers-btn" class="btn btn-secondary btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Export Customers (JSON)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Upcoming Expirations Radar & Quick Reminders Alert Box -->
+          <div class="admin-expiry-radar-box" id="admin-expiry-radar-box">
+            <div class="admin-expiry-radar-header">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="radar-bell-box">
+                  <span class="radar-pulse-ring"></span>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <div>
+                  <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--text-heading); margin: 0 0 2px 0;">⚡ Upcoming Expirations & 1-Click WhatsApp Reminders</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Real-time radar tracking subscriptions about to expire. Send immediate WhatsApp renewal reminders with one click.</p>
+                </div>
+              </div>
+              <span id="radar-count-badge" class="radar-alert-pill">Scanning...</span>
+            </div>
+
+            <!-- Radar Cards Grid -->
+            <div id="admin-expiry-radar-cards" class="admin-expiry-radar-cards">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <!-- Customer Search & Expiry Filter Toolbar -->
+          <div class="admin-toolbar" style="flex-wrap: wrap; gap: 12px;">
+            <div class="search-box-wrapper" style="flex: 1; min-width: 260px; margin: 0;">
+              <span class="search-icon-inside">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </span>
+              <input type="text" id="admin-customer-search" class="search-input" placeholder="Search customer name, WhatsApp, email, or subscription..." />
+            </div>
+
+            <!-- Expiry Status Filter -->
+            <select id="admin-customer-filter-status" class="admin-filter-select" aria-label="Filter customers by subscription status">
+              <option value="all">All Customers</option>
+              <option value="active">Active Plans</option>
+              <option value="expiring">Expiring Soon (≤ 5 Days)</option>
+              <option value="expired">Expired Plans</option>
+              <option value="none">No Active Plan</option>
+            </select>
+          </div>
+
+          <div class="mobile-table-hint">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            <span>Swipe horizontally to view full customer directory</span>
+          </div>
+
+          <!-- Customers Table -->
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>WhatsApp Phone</th>
+                  <th>Active Subscriptions</th>
+                  <th>Soonest Expiry Timer</th>
+                  <th>Status</th>
+                  <th>Registered</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-customers-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SUBSCRIPTIONS & PRODUCTS MANAGEMENT (CRUD) -->
+      <section id="admin-tab-products" class="admin-tab-pane">
+        <div class="admin-card-box">
+          <div class="admin-card-header">
+            <div>
+              <h2 class="admin-card-title">Digital Subscriptions Catalog</h2>
+              <p class="admin-card-desc">Add new products, update prices, change badges, or toggle availability instantly on the live storefront.</p>
+            </div>
+            <button type="button" id="admin-add-product-btn" class="btn btn-forest btn-md">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add New Subscription</span>
+            </button>
+          </div>
+
+          <!-- Filter & Search Bar -->
+          <div class="admin-toolbar">
+            <div class="search-box-wrapper" style="flex-grow: 1; margin: 0;">
+              <span class="search-icon-inside">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </span>
+              <input type="text" id="admin-product-search" class="search-input" placeholder="Search subscription name or category..." />
+            </div>
+          </div>
+
+          <div class="mobile-table-hint">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            <span>Swipe horizontally to view full subscriptions catalog</span>
+          </div>
+
+          <!-- Product Table -->
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Price (₦)</th>
+                  <th>Plan Period</th>
+                  <th>Badge</th>
+                  <th>Homepage Featured</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-products-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: X ACCOUNTS INVENTORY MANAGEMENT -->
+      <section id="admin-tab-accounts" class="admin-tab-pane">
+        <div class="admin-card-box">
+          <div class="admin-card-header">
+            <div>
+              <h2 class="admin-card-title">X (Twitter) Accounts Inventory</h2>
+              <p class="admin-card-desc">Manage verified profiles, aged vintage accounts, niche audiences, and pricing.</p>
+            </div>
+            <button type="button" id="admin-add-account-btn" class="btn btn-forest btn-md">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add Account Tier</span>
+            </button>
+          </div>
+
+          <div class="mobile-table-hint">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            <span>Swipe horizontally to view full account tiers</span>
+          </div>
+
+          <!-- Accounts Table -->
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Account Tier</th>
+                  <th>Category</th>
+                  <th>Price (₦)</th>
+                  <th>Creation Year</th>
+                  <th>Follower Stats</th>
+                  <th>Badge</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-accounts-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: STORE SETTINGS & CONTROLS -->
+      <section id="admin-tab-settings" class="admin-tab-pane">
+        <div class="admin-grid-2">
+          
+          <!-- Live Announcement Bar Controls -->
+          <div class="admin-card-box">
+            <h3 class="admin-card-title" style="margin-bottom: 6px;">Live Announcement Bar Controller</h3>
+            <p class="admin-card-desc" style="margin-bottom: 16px;">Customize the top promotional ticker displayed on every storefront page.</p>
+            
+            <form id="admin-announcement-form" onsubmit="return false;">
+              <div class="form-group-compact" style="margin-bottom: 12px;">
+                <label for="announcement-text-input" class="compact-label">Announcement Banner Text:</label>
+                <input type="text" id="announcement-text-input" class="form-control-compact" value="Enjoy instant WhatsApp delivery & 100% warranty on all digital subscriptions!" required />
+              </div>
+
+              <div class="form-group-compact" style="margin-bottom: 16px;">
+                <label for="announcement-link-text-input" class="compact-label">Button / CTA Link Text:</label>
+                <input type="text" id="announcement-link-text-input" class="form-control-compact" value="Order via WhatsApp &rarr;" required />
+              </div>
+
+              <button type="submit" id="save-announcement-btn" class="btn btn-primary btn-sm">
+                <span>Update Announcement Bar</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- WhatsApp Support Line Controller -->
+          <div class="admin-card-box">
+            <h3 class="admin-card-title" style="margin-bottom: 6px;">Store WhatsApp Dispatch Line</h3>
+            <p class="admin-card-desc" style="margin-bottom: 16px;">Update your central customer service and order dispatch phone number.</p>
+            
+            <form id="admin-whatsapp-setting-form" onsubmit="return false;">
+              <div class="form-group-compact" style="margin-bottom: 16px;">
+                <label for="admin-wa-number-input" class="compact-label">WhatsApp Number (e.g. 07047929177):</label>
+                <input type="tel" id="admin-wa-number-input" class="form-control-compact" value="07047929177" required />
+              </div>
+
+              <button type="submit" id="save-wa-setting-btn" class="btn btn-forest btn-sm">
+                <span>Save Dispatch Line</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Security Settings -->
+          <div class="admin-card-box">
+            <h3 class="admin-card-title" style="margin-bottom: 6px;">Security & Access PIN</h3>
+            <p class="admin-card-desc" style="margin-bottom: 16px;">Update the secret 4-digit PIN used to access this admin panel.</p>
+            
+            <form id="admin-change-pin-form" onsubmit="return false;">
+              <div class="form-group-compact" style="margin-bottom: 12px;">
+                <label for="new-admin-pin" class="compact-label">New PIN (4 to 8 digits):</label>
+                <input type="password" id="new-admin-pin" class="form-control-compact" placeholder="e.g. 9921" maxlength="8" required />
+              </div>
+              <button type="submit" id="save-pin-btn" class="btn btn-forest btn-sm">
+                <span>Update Admin PIN</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Store Catalog Data Management -->
+          <div class="admin-card-box">
+            <h3 class="admin-card-title" style="margin-bottom: 6px;">Catalog Data & Backup</h3>
+            <p class="admin-card-desc" style="margin-bottom: 16px;">Export your customized catalog or restore the official flyer defaults.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button type="button" id="admin-export-data-btn" class="btn btn-secondary btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Export Catalog Data (JSON Backup)</span>
+              </button>
+
+              <button type="button" id="admin-reset-catalog-btn" class="btn btn-danger-outline btn-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+                <span>Reset to Official Flyer Defaults</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 3. MODAL: ADD / EDIT SUBSCRIPTION PRODUCT -->
+  <div id="product-modal-overlay" class="admin-modal-overlay" style="display: none;">
+    <div class="admin-modal-card">
+      <div class="admin-modal-header">
+        <h3 id="product-modal-title" class="admin-modal-heading">Add Subscription</h3>
+        <button type="button" id="product-modal-close" class="drawer-close-btn" onclick="document.getElementById('product-modal-overlay').style.display='none'">&times;</button>
+      </div>
+
+      <form id="product-edit-form" class="compact-form">
+        <input type="hidden" id="product-edit-id" />
+
+        <div class="compact-grid-2">
+          <div class="form-group-compact">
+            <label for="product-edit-name" class="compact-label">Product Name *</label>
+            <input type="text" id="product-edit-name" class="form-control-compact" placeholder="e.g. Disney+ Premium" required />
+          </div>
+
+          <div class="form-group-compact">
+            <label for="product-edit-category" class="compact-label">Category *</label>
+            <select id="product-edit-category" class="form-control-compact">
+              <option value="streaming">Streaming</option>
+              <option value="ai">AI & Productivity</option>
+              <option value="vpn">VPN Plans</option>
+              <option value="design">Design & Editing</option>
+              <option value="social">Social & Accounts</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="compact-grid-2">
+          <div class="form-group-compact">
+            <label for="product-edit-price" class="compact-label">Price in Naira (₦) *</label>
+            <input type="number" id="product-edit-price" class="form-control-compact" placeholder="e.g. 2500" min="100" required />
+          </div>
+
+          <div class="form-group-compact">
+            <label for="product-edit-period" class="compact-label">Plan Period / Term *</label>
+            <input type="text" id="product-edit-period" class="form-control-compact" placeholder="e.g. 1 Month or Individual" required />
+          </div>
+        </div>
+
+        <div class="compact-grid-2">
+          <div class="form-group-compact">
+            <label for="product-edit-badge" class="compact-label">Badge Tag (Optional)</label>
+            <input type="text" id="product-edit-badge" class="form-control-compact" placeholder="e.g. Bestseller, 4K UHD, Hot" />
+          </div>
+
+          <div class="form-group-compact">
+            <label for="product-edit-logo" class="compact-label">Logo Asset Path or URL</label>
+            <input type="text" id="product-edit-logo" class="form-control-compact" list="product-logo-datalist" placeholder="/logos/spotify.svg or Image URL" />
+            <datalist id="product-logo-datalist">
+              <option value="/logos/spotify.svg">Spotify</option>
+              <option value="/logos/netflix.svg">Netflix</option>
+              <option value="/logos/youtube.svg">YouTube</option>
+              <option value="/logos/chatgpt.svg">ChatGPT</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/a/ad/Capcut-icon.svg">CapCut</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg">Prime Video</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/0/08/Canva_icon_2021.svg">Canva</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg">Google Gemini</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg">Telegram</option>
+              <option value="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg">X (Twitter)</option>
+              <option value="https://cdn.simpleicons.org/expressvpn/DA3940">ExpressVPN</option>
+              <option value="https://cdn.simpleicons.org/surfshark/18868B">Surfshark</option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-group-compact">
+          <label for="product-edit-desc" class="compact-label">Short Description</label>
+          <input type="text" id="product-edit-desc" class="form-control-compact" placeholder="e.g. Ultra HD 4K streaming on private profile" />
+        </div>
+
+        <div class="form-group-compact">
+          <label for="product-edit-features" class="compact-label">Key Features (comma-separated)</label>
+          <input type="text" id="product-edit-features" class="form-control-compact" placeholder="Ad-free playback, Offline downloads, 4K screen" />
+        </div>
+
+        <div class="form-group-compact" style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+          <input type="checkbox" id="product-edit-featured" style="width: 18px; height: 18px; accent-color: #16A34A;" />
+          <label for="product-edit-featured" class="compact-label" style="margin: 0; cursor: pointer;">Feature on Homepage Curated Grid</label>
+        </div>
+
+        <div class="admin-modal-actions">
+          <button type="button" id="product-modal-cancel" class="btn btn-secondary btn-md" onclick="document.getElementById('product-modal-overlay').style.display='none'">Cancel</button>
+          <button type="submit" id="product-modal-save" class="btn btn-forest btn-md">Save Subscription</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. MODAL: DELETE CONFIRMATION -->
+  <div id="delete-modal-overlay" class="admin-modal-overlay" style="display: none;">
+    <div class="admin-modal-card" style="max-width: 440px; text-align: center;">
+      <div class="admin-modal-icon-circle" style="background: rgba(239, 68, 68, 0.15); color: #EF4444; margin: 0 auto 16px;">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </div>
+      <h3 class="admin-modal-heading">Confirm Deletion</h3>
+      <p id="delete-modal-desc" class="admin-card-desc" style="margin-bottom: 20px;">Are you sure you want to remove this item from the live catalog?</p>
+      
+      <div class="admin-modal-actions" style="justify-content: center;">
+        <button type="button" id="delete-modal-cancel" class="btn btn-secondary btn-md" onclick="document.getElementById('delete-modal-overlay').style.display='none'">Cancel</button>
+        <button type="button" id="delete-modal-confirm" class="btn btn-danger btn-md">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5A. MODAL: USER SUBSCRIPTIONS & REAL-TIME EXPIRATION TRACKER HUB -->
+  <div id="customer-subs-hub-modal-overlay" class="admin-modal-overlay" style="display: none;">
+    <div class="admin-modal-card user-subs-hub-modal-card">
+      <div class="admin-modal-header" style="align-items: flex-start;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="hub-user-avatar" class="nav-user-avatar" style="width: 42px; height: 42px; font-size: 1.1rem; flex-shrink: 0;">B</div>
+          <div>
+            <h3 class="admin-modal-heading" id="hub-user-name" style="margin: 0 0 3px 0; font-size: 1.25rem;">Customer Subscriptions</h3>
+            <div id="hub-user-phone-line" style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+        <button type="button" class="drawer-close-btn" id="customer-subs-hub-close" title="Close Subscriptions Hub" onclick="document.getElementById('customer-subs-hub-modal-overlay').style.display='none'" style="font-size: 1.7rem; cursor: pointer; line-height: 1; border: none; background: transparent; color: var(--text-muted);">&times;</button>
+      </div>
+
+      <!-- Hub Subscriptions Toolbar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 10px;">
+        <div>
+          <span style="font-size: 0.92rem; font-weight: 800; color: var(--text-heading);" id="hub-subs-count-label">Active Subscriptions</span>
+          <span style="font-size: 0.76rem; color: var(--text-muted); display: block;">Real-time countdown timers and direct 1-click WhatsApp renewal reminder messaging.</span>
+        </div>
+        <button type="button" id="hub-add-new-sub-btn" class="btn btn-forest btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>+ Add Subscription</span>
+        </button>
+      </div>
+
+      <!-- Subscriptions Cards List Container -->
+      <div id="hub-subscriptions-list" class="hub-subscriptions-list">
+        <!-- Injected via JS with live ticking countdown timers & reminder buttons -->
+      </div>
+
+      <div class="admin-modal-actions" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+        <button type="button" id="customer-subs-hub-dismiss" class="btn btn-secondary btn-md" onclick="document.getElementById('customer-subs-hub-modal-overlay').style.display='none'" style="margin-left: auto;">Close Hub</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5B. MODAL: EDIT / ASSIGN INDIVIDUAL SUBSCRIPTION & EXPIRY -->
+  <div id="customer-sub-modal-overlay" class="admin-modal-overlay" style="display: none;">
+    <div class="admin-modal-card" style="max-width: 520px;">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-heading" id="customer-sub-modal-title">Manage Customer Subscription</h3>
+        <button type="button" class="drawer-close-btn" id="customer-sub-modal-close" onclick="document.getElementById('customer-sub-modal-overlay').style.display='none'">&times;</button>
+      </div>
+
+      <form id="customer-sub-form" class="compact-form">
+        <input type="hidden" id="customer-sub-id" />
+
+        <div class="form-group-compact">
+          <label class="compact-label">Customer Account</label>
+          <input type="text" id="customer-sub-name-display" class="form-control-compact" readonly style="background: var(--bg-surface); opacity: 0.85; font-weight: 700;" />
+        </div>
+
+        <div class="form-group-compact">
+          <label for="customer-sub-service" class="compact-label">Assigned Subscription Plan *</label>
+          <select id="customer-sub-service" class="form-control-compact" required>
+            <!-- Dynamically populated with all services & accounts -->
+          </select>
+        </div>
+
+        <div class="compact-grid-2">
+          <div class="form-group-compact">
+            <label for="customer-sub-price" class="compact-label">Plan Price Display</label>
+            <input type="text" id="customer-sub-price" class="form-control-compact" placeholder="e.g. ₦800" />
+          </div>
+
+          <div class="form-group-compact">
+            <label for="customer-sub-period" class="compact-label">Plan Tier / Term</label>
+            <input type="text" id="customer-sub-period" class="form-control-compact" placeholder="e.g. Individual Account" />
+          </div>
+        </div>
+
+        <!-- Expiry Date Setting -->
+        <div class="form-group-compact">
+          <label for="customer-sub-expiry" class="compact-label">Subscription Expiry Date *</label>
+          <input type="date" id="customer-sub-expiry" class="form-control-compact" required />
+        </div>
+
+        <!-- Quick Duration Shortcuts -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+          <span style="font-size: 0.76rem; color: var(--text-muted); align-self: center; font-weight: 700;">Quick Set:</span>
+          <button type="button" class="btn btn-secondary btn-sm quick-exp-btn" data-days="30" style="padding: 4px 10px; font-size: 0.76rem;">+30 Days (1 Mo)</button>
+          <button type="button" class="btn btn-secondary btn-sm quick-exp-btn" data-days="90" style="padding: 4px 10px; font-size: 0.76rem;">+90 Days (3 Mo)</button>
+          <button type="button" class="btn btn-secondary btn-sm quick-exp-btn" data-days="180" style="padding: 4px 10px; font-size: 0.76rem;">+6 Months</button>
+          <button type="button" class="btn btn-secondary btn-sm quick-exp-btn" data-days="365" style="padding: 4px 10px; font-size: 0.76rem;">+1 Year</button>
+        </div>
+
+        <div class="form-group-compact">
+          <label for="customer-sub-status" class="compact-label">Subscription Status</label>
+          <select id="customer-sub-status" class="form-control-compact">
+            <option value="Active">Active Plan</option>
+            <option value="Expired">Expired</option>
+            <option value="Suspended">Suspended</option>
+            <option value="None">No Active Plan</option>
+          </select>
+        </div>
+
+        <div class="admin-modal-actions">
+          <button type="button" id="customer-sub-modal-cancel" class="btn btn-secondary btn-md" onclick="document.getElementById('customer-sub-modal-overlay').style.display='none'">Cancel</button>
+          <button type="submit" id="customer-sub-modal-save" class="btn btn-forest btn-md">Save Subscription</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. MODAL: ADD NEW CUSTOMER -->
+  <div id="admin-add-customer-modal-overlay" class="admin-modal-overlay" style="display: none;">
+    <div class="admin-modal-card" style="max-width: 500px;">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-heading">Add New Customer</h3>
+        <button type="button" class="drawer-close-btn" id="add-customer-modal-close" onclick="document.getElementById('admin-add-customer-modal-overlay').style.display='none'">&times;</button>
+      </div>
+
+      <form id="admin-add-customer-form" class="compact-form">
+        <div class="form-group-compact">
+          <label for="new-cust-name" class="compact-label">Full Name / Nickname *</label>
+          <input type="text" id="new-cust-name" class="form-control-compact" placeholder="e.g. Babatunde Raji" required />
+        </div>
+
+        <div class="form-group-compact">
+          <label for="new-cust-whatsapp" class="compact-label">WhatsApp Number *</label>
+          <input type="tel" id="new-cust-whatsapp" class="form-control-compact" placeholder="e.g. 08012345678" required />
+        </div>
+
+        <div class="form-group-compact">
+          <label for="new-cust-email" class="compact-label">Email (Optional)</label>
+          <input type="email" id="new-cust-email" class="form-control-compact" placeholder="e.g. customer@gmail.com" />
+        </div>
+
+        <div class="form-group-compact">
+          <label for="new-cust-service" class="compact-label">Initial Subscription (Optional)</label>
+          <select id="new-cust-service" class="form-control-compact">
+            <option value="">-- No Active Plan (Pending) --</option>
+          </select>
+        </div>
+
+        <div class="form-group-compact">
+          <label for="new-cust-duration" class="compact-label">Plan Duration</label>
+          <select id="new-cust-duration" class="form-control-compact">
+            <option value="30">1 Month (30 Days)</option>
+            <option value="90">3 Months (90 Days)</option>
+            <option value="180">6 Months (180 Days)</option>
+            <option value="365">1 Year (365 Days)</option>
+          </select>
+        </div>
+
+        <div class="admin-modal-actions">
+          <button type="button" id="add-customer-modal-cancel" class="btn btn-secondary btn-md" onclick="document.getElementById('admin-add-customer-modal-overlay').style.display='none'">Cancel</button>
+          <button type="submit" class="btn btn-forest btn-md">Create Customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Script Entry -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

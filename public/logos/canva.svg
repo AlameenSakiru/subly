@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
+  <defs>
+    <linearGradient id="canva-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C4CC"/>
+      <stop offset="100%" stop-color="#7D2AE8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="12" cy="12" r="12" fill="url(#canva-grad)"/>
+  <path fill="#FFFFFF" d="M12 5.5c-3.6 0-6.5 2.9-6.5 6.5s2.9 6.5 6.5 6.5c1.8 0 3.4-.7 4.6-1.9-.3-.3-.7-.6-1.1-.9-.9.9-2.1 1.4-3.5 1.4-2.8 0-5.1-2.3-5.1-5.1s2.3-5.1 5.1-5.1c1.5 0 2.8.6 3.7 1.6l1.1-.9C15.6 6.3 13.9 5.5 12 5.5z"/>
+</svg>

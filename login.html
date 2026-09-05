@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Sign In — Subly Nigeria</title>
+  <meta name="description" content="Sign in to your Subly account to track your digital subscriptions, auto-fill orders, and view renewal warranties." />
+  <link rel="canonical" href="https://subly.store/login.html" />
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://subly.store/login.html" />
+  <meta property="og:title" content="Customer Sign In — Subly Nigeria" />
+  <meta property="og:description" content="Sign in to Subly to manage your digital subscriptions, renewals, and warranties." />
+  <meta property="og:image" content="/og-image.jpg" />
+
+  <!-- Fonts: Outfit & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="auth-page-body">
+  
+  <!-- Background Glows -->
+  <div class="flyer-bg-ambient">
+    <div class="bg-glow-spot glow-spot-1"></div>
+    <div class="bg-glow-spot glow-spot-2"></div>
+  </div>
+
+  <!-- Minimal Auth Header -->
+  <header class="auth-top-header">
+    <div class="nav-container" style="justify-content: space-between;">
+      <a href="index.html" class="nav-brand" aria-label="Subly Home">
+        <div class="brand-logo-group">
+          <div class="brand-mark-box">
+            <svg viewBox="0 0 36 36" width="30" height="30" fill="none">
+              <rect x="5" y="8" width="16" height="8" rx="4" transform="rotate(-35 5 8)" fill="#22C55E"/>
+              <rect x="17" y="17" width="16" height="8" rx="4" transform="rotate(-35 17 17)" fill="#14532D"/>
+            </svg>
+          </div>
+          <span class="brand-name">subly</span>
+        </div>
+      </a>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="index.html" class="btn btn-secondary btn-sm">Storefront &rarr;</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Auth Container -->
+  <main class="auth-main-wrapper">
+    <div class="customer-auth-card">
+      <div class="auth-card-icon-circle">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#16A34A" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      </div>
+
+      <h1 class="auth-card-title">Welcome Back</h1>
+      <p class="auth-card-subtitle">Sign in to auto-fill orders, track active subscriptions, and view warranty history.</p>
+
+      <form id="customer-login-form" onsubmit="return false;" class="auth-form-body">
+        <div class="form-group-compact" style="margin-bottom: 14px;">
+          <label for="login-identifier" class="compact-label">WhatsApp Number or Email *</label>
+          <input type="text" id="login-identifier" class="form-control-compact" placeholder="e.g. 08012345678 or name@gmail.com" maxlength="80" autocomplete="username" required autofocus />
+        </div>
+
+        <div class="form-group-compact" style="margin-bottom: 16px;">
+          <label for="login-password" class="compact-label">Password *</label>
+          <input type="password" id="login-password" class="form-control-compact" placeholder="Enter your account password" maxlength="40" autocomplete="current-password" required />
+        </div>
+
+        <div id="login-error-msg" class="admin-auth-error-msg" style="display: none; margin-bottom: 12px;"></div>
+
+        <button type="submit" id="customer-login-btn" class="btn btn-forest btn-lg" style="width: 100%; justify-content: center; margin-bottom: 16px;">
+          <span>Sign In to Account</span>
+        </button>
+      </form>
+
+      <div class="auth-card-footer">
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 10px;">
+          Don't have an account yet? <a href="signup.html" class="auth-inline-link">Create Account &rarr;</a>
+        </p>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Just want to order quickly? <a href="services.html" class="auth-inline-link" style="color: var(--text-body);">Order as Guest</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
