@@ -586,9 +586,10 @@ function initOrderPage() {
   const targetId = urlParams.get('id');
 
   if (targetId) {
-    const matchingOption = Array.from(selectDropdown.options).find(opt => opt.value === targetId);
+    const effectiveTargetId = (targetId === 'tg-premium') ? 'tg-premium-3m' : targetId;
+    const matchingOption = Array.from(selectDropdown.options).find(opt => opt.value === effectiveTargetId);
     if (matchingOption) {
-      selectDropdown.value = targetId;
+      selectDropdown.value = effectiveTargetId;
     }
   }
 
@@ -3545,6 +3546,7 @@ function initStickyMobileCta() {
         if (visible !== isVisible) {
           isVisible = visible;
           ctaBar.classList.toggle('visible', isVisible);
+          document.body.classList.toggle('has-sticky-cta', isVisible);
         }
         ticking = false;
       });
