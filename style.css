@@ -1493,39 +1493,52 @@ body.dark-theme .cat-pill-icon {
 }
 
 .service-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  padding: 7px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform var(--transition-fast);
+  background: transparent;
+  border: none;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 body.dark-theme .service-icon-box {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .service-card-modern:hover .service-icon-box {
-  transform: scale(1.08) rotate(-3deg);
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 .brand-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  border-radius: 4px;
+  object-fit: cover;
+  border-radius: 14px;
   display: block;
 }
 
-.service-card-modern:hover .service-icon-box {
-  transform: scale(1.08);
+.brand-fallback-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.brand-fallback-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .card-badge-tag {
@@ -2699,14 +2712,15 @@ body.dark-theme .order-back-link:hover {
   width: 54px;
   height: 54px;
   border-radius: 14px;
-  background: var(--bg-surface);
-  border: 1.5px solid var(--border-color);
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 0;
+  overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .showcase-details {
@@ -3021,14 +3035,16 @@ body.dark-theme .order-ref-pill {
 .plan-icon-wrap {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: 0;
+  overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .plan-details-wrap {
@@ -6061,3 +6077,84 @@ body.dark-theme .warranty-guide-box {
   }
 }
 
+
+
+/* ==========================================================================
+   OFFICIAL SOCIAL MEDIA BUTTONS & CHANNELS
+   ========================================================================== */
+.footer-social-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.social-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.social-icon-btn:hover {
+  transform: translateY(-2px);
+}
+
+.social-icon-btn.social-wa:hover {
+  background: #25D366;
+  color: #FFFFFF;
+  border-color: #25D366;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4);
+}
+
+.social-icon-btn.social-tg:hover {
+  background: #24A1DE;
+  color: #FFFFFF;
+  border-color: #24A1DE;
+  box-shadow: 0 4px 14px rgba(36, 161, 222, 0.4);
+}
+
+.social-icon-btn.social-x:hover {
+  background: #000000;
+  color: #FFFFFF;
+  border-color: #000000;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.social-icon-btn.social-ig:hover {
+  background: linear-gradient(135deg, #833AB4, #FD1D1D, #FCB045);
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(253, 29, 29, 0.4);
+}
+
+/* Drawer Social Section */
+.drawer-social-section {
+  padding: 14px 0 10px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 12px;
+}
+
+.drawer-social-label {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.drawer-social-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

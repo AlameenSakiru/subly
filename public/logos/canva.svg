@@ -1,10 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
   <defs>
     <linearGradient id="canva-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00C4CC"/>
+      <stop offset="50%" stop-color="#4F52E2"/>
       <stop offset="100%" stop-color="#7D2AE8"/>
     </linearGradient>
   </defs>
-  <circle cx="12" cy="12" r="12" fill="url(#canva-grad)"/>
-  <path fill="#FFFFFF" d="M12 5.5c-3.6 0-6.5 2.9-6.5 6.5s2.9 6.5 6.5 6.5c1.8 0 3.4-.7 4.6-1.9-.3-.3-.7-.6-1.1-.9-.9.9-2.1 1.4-3.5 1.4-2.8 0-5.1-2.3-5.1-5.1s2.3-5.1 5.1-5.1c1.5 0 2.8.6 3.7 1.6l1.1-.9C15.6 6.3 13.9 5.5 12 5.5z"/>
+  <rect width="100" height="100" rx="22" fill="url(#canva-grad)"/>
+  <path fill="#FFFFFF" d="M52.5 35.8c-2.4-3.5-6.5-5.8-11.8-5.8-9.8 0-17.5 7.8-17.5 19.5 0 11.2 7.2 19.5 18 19.5 7.8 0 13.5-4.2 16.2-10.2l-6.8-3.2c-1.5 3.8-4.8 6.2-9.4 6.2-5.5 0-9.8-4.2-10.2-10.5h27.8c.2-1.2.3-2.5.3-3.8 0-4.8-2.2-8.5-6.6-11.7zm-13.5 9c.5-4.5 3.8-7.5 8-7.5 4 0 7 2.8 7.5 7.5H39z"/>
+  <circle cx="68" cy="30" r="3.5" fill="#FFFFFF"/>
 </svg>

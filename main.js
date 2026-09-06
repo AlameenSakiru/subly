@@ -3078,201 +3078,26 @@ export function logoutCustomer() {
   window.location.reload();
 }
 
+// One-time clear of previous dummy/mock seed user data
+if (SafeStorage.getString('subly_cleaned_users_v4') !== 'true') {
+  SafeStorage.setJSON(SUBLY_USERS_KEY, []);
+  SafeStorage.setJSON(SUBLY_ORDERS_KEY, []);
+  SafeStorage.remove(SUBLY_CUSTOMER_KEY);
+  SafeStorage.setString('subly_cleaned_users_v4', 'true');
+}
+
 export function getRegisteredCustomers() {
   const saved = SafeStorage.getJSON(SUBLY_USERS_KEY, null);
   if (Array.isArray(saved) && saved.length > 0) {
-    // Normalize older customer records ensuring subscriptions array is always present
+    // Normalize customer records ensuring subscriptions array is always present
     return saved.map(cust => {
       if (!Array.isArray(cust.subscriptions)) {
         cust.subscriptions = [];
-        if (cust.subscription) {
-          cust.subscriptions.push({
-            id: 'sub-' + Math.random().toString(36).substr(2, 6),
-            serviceName: cust.subscription,
-            serviceId: cust.serviceId || '',
-            logoUrl: cust.logoUrl || '/logos/spotify.svg',
-            planPrice: cust.planPrice || '₦800',
-            period: cust.period || 'Individual Plan',
-            startDate: cust.startDate || new Date().toISOString(),
-            expiryDate: cust.expiryDate || new Date(Date.now() + 30 * 86400000).toISOString(),
-            status: cust.status || 'Active'
-          });
-        }
       }
       return cust;
     });
   }
-
-  // Default starter customer database showcasing multiple subscriptions per user with real-time expiration countdowns
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-  const seeds = [
-    {
-      id: 'cust-101',
-      name: 'Babatunde Adeleke',
-      whatsapp: '08023456789',
-      email: 'babatunde.adeleke@gmail.com',
-      registeredAt: new Date(now - 45 * oneDay).toISOString(),
-      subscriptions: [
-        {
-          id: 'sub-101-1',
-          serviceName: 'Netflix Premium 4K UHD',
-          serviceId: 'srv-netflix',
-          logoUrl: '/logos/netflix.svg',
-          planPrice: '₦3,500',
-          period: '4K UHD Profile (1 Mo)',
-          startDate: new Date(now - 28 * oneDay).toISOString(),
-          expiryDate: new Date(now + 2 * oneDay).toISOString(), // Expiring in 2 days!
-          status: 'Active'
-        },
-        {
-          id: 'sub-101-2',
-          serviceName: 'Spotify Premium',
-          serviceId: 'srv-spotify',
-          logoUrl: '/logos/spotify.svg',
-          planPrice: '₦800',
-          period: 'Individual Plan (1 Mo)',
-          startDate: new Date(now - 14 * oneDay).toISOString(),
-          expiryDate: new Date(now + 16 * oneDay).toISOString(), // 16 days left
-          status: 'Active'
-        }
-      ]
-    },
-    {
-      id: 'cust-102',
-      name: 'Chioma Okonkwo',
-      whatsapp: '08134567890',
-      email: 'chioma.designs@yahoo.com',
-      registeredAt: new Date(now - 30 * oneDay).toISOString(),
-      subscriptions: [
-        {
-          id: 'sub-102-1',
-          serviceName: 'Netflix Standard HD',
-          serviceId: 'srv-netflix',
-          logoUrl: '/logos/netflix.svg',
-          planPrice: '₦3,000',
-          period: '1 Screen Profile (1 Mo)',
-          startDate: new Date(now - 29 * oneDay).toISOString(),
-          expiryDate: new Date(now + 18 * 60 * 60 * 1000).toISOString(), // Expiring in 18 hours!
-          status: 'Active'
-        },
-        {
-          id: 'sub-102-2',
-          serviceName: 'Canva Pro Team',
-          serviceId: 'srv-canva',
-          logoUrl: '/logos/canva.svg',
-          planPrice: '₦2,500',
-          period: '1 Year Full Access',
-          startDate: new Date(now - 75 * oneDay).toISOString(),
-          expiryDate: new Date(now + 290 * oneDay).toISOString(), // Active
-          status: 'Active'
-        }
-      ]
-    },
-    {
-      id: 'cust-103',
-      name: 'Ibrahim Musa',
-      whatsapp: '09045678901',
-      email: 'ibrahim.musa@outlook.com',
-      registeredAt: new Date(now - 60 * oneDay).toISOString(),
-      subscriptions: [
-        {
-          id: 'sub-103-1',
-          serviceName: 'ChatGPT Plus Shared',
-          serviceId: 'srv-chatgpt',
-          logoUrl: '/logos/chatgpt.svg',
-          planPrice: '₦5,000',
-          period: 'GPT-4o Access (1 Mo)',
-          startDate: new Date(now - 35 * oneDay).toISOString(),
-          expiryDate: new Date(now - 4 * oneDay).toISOString(), // Expired 4 days ago!
-          status: 'Expired'
-        },
-        {
-          id: 'sub-103-2',
-          serviceName: 'NordVPN 2-Year Plan',
-          serviceId: 'srv-nordvpn',
-          logoUrl: '/logos/nordvpn.svg',
-          planPrice: '₦4,000',
-          period: '6 Months Ultra Fast',
-          startDate: new Date(now - 150 * oneDay).toISOString(),
-          expiryDate: new Date(now + 30 * oneDay).toISOString(), // 30 days left
-          status: 'Active'
-        }
-      ]
-    },
-    {
-      id: 'cust-104',
-      name: 'Emeka Nwosu',
-      whatsapp: '08067890123',
-      email: 'emeka.tech@gmail.com',
-      registeredAt: new Date(now - 180 * oneDay).toISOString(),
-      subscriptions: [
-        {
-          id: 'sub-104-1',
-          serviceName: 'CapCut Pro VIP',
-          serviceId: 'srv-capcut',
-          logoUrl: '/logos/capcut.svg',
-          planPrice: '₦2,500',
-          period: 'Pro PC & Mobile (1 Mo)',
-          startDate: new Date(now - 27 * oneDay).toISOString(),
-          expiryDate: new Date(now + 3 * oneDay).toISOString(), // Expiring in 3 days!
-          status: 'Active'
-        },
-        {
-          id: 'sub-104-2',
-          serviceName: 'YouTube Premium Family',
-          serviceId: 'srv-youtube',
-          logoUrl: '/logos/youtube.svg',
-          planPrice: '₦1,200',
-          period: 'Family Slot (1 Mo)',
-          startDate: new Date(now - 18 * oneDay).toISOString(),
-          expiryDate: new Date(now + 12 * oneDay).toISOString(),
-          status: 'Active'
-        }
-      ]
-    },
-    {
-      id: 'cust-105',
-      name: 'Ngozi Eze',
-      whatsapp: '07056789012',
-      email: 'ngozi.eze@gmail.com',
-      registeredAt: new Date(now - 90 * oneDay).toISOString(),
-      subscriptions: [
-        {
-          id: 'sub-105-1',
-          serviceName: 'Canva Pro Pro-Team',
-          serviceId: 'srv-canva',
-          logoUrl: '/logos/canva.svg',
-          planPrice: '₦2,500',
-          period: '1 Year Full Access',
-          startDate: new Date(now - 60 * oneDay).toISOString(),
-          expiryDate: new Date(now + 305 * oneDay).toISOString(),
-          status: 'Active'
-        },
-        {
-          id: 'sub-105-2',
-          serviceName: 'Apple Music Individual',
-          serviceId: 'srv-applemusic',
-          logoUrl: '/logos/applemusic.svg',
-          planPrice: '₦1,000',
-          period: 'High-Res Lossless (1 Mo)',
-          startDate: new Date(now - 5 * oneDay).toISOString(),
-          expiryDate: new Date(now + 25 * oneDay).toISOString(),
-          status: 'Active'
-        }
-      ]
-    },
-    {
-      id: 'cust-106',
-      name: 'Fatima Bello',
-      whatsapp: '08123459876',
-      email: 'fatima.bello@gmail.com',
-      registeredAt: new Date(now - 5 * oneDay).toISOString(),
-      subscriptions: []
-    }
-  ];
-  SafeStorage.setJSON(SUBLY_USERS_KEY, seeds);
-  return seeds;
+  return [];
 }
 
 export function saveRegisteredCustomers(list) {

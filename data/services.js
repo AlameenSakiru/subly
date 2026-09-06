@@ -107,7 +107,7 @@ export const flyerMainServices = [
     badge: "Hot",
     brandColor: "#000000",
     icon: "capcut",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/a/ad/Capcut-icon.svg",
+    logoUrl: "/logos/capcut.svg",
     features: ["All Pro effects & transitions", "AI video captions & voice", "4K 60fps export", "PC & Mobile sync"]
   },
   {
@@ -124,7 +124,7 @@ export const flyerMainServices = [
     badge: "Instant Delivery",
     brandColor: "#00A8E1",
     icon: "prime",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg",
+    logoUrl: "/logos/prime.svg",
     features: ["Thousands of HD movies", "Instant account logs", "Multi-device support", "30-day warranty"]
   },
   {
@@ -141,7 +141,7 @@ export const flyerMainServices = [
     badge: "Verified Check",
     brandColor: "#000000",
     icon: "x",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg",
+    logoUrl: "/logos/x.svg",
     features: ["Blue checkmark badge", "Grok AI assistant access", "Prioritized replies & ranking", "Long post & edit button"]
   },
   {
@@ -158,8 +158,25 @@ export const flyerMainServices = [
     badge: "Best Value",
     brandColor: "#000000",
     icon: "x",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg",
+    logoUrl: "/logos/x.svg",
     features: ["6 months active checkmark", "Creator revenue eligibility", "Ad revenue share boost", "Fast account delivery"]
+  },
+  {
+    id: "tg-premium-1m",
+    name: "Telegram Premium (1 Month)",
+    category: "social",
+    categoryLabel: "Social & Accounts",
+    price: 2500,
+    priceDisplay: "₦2,500",
+    period: "1 Month",
+    description: "4GB file uploads, faster downloads, voice-to-text, animated emoji, and star badge for 1 month.",
+    featured: true,
+    popular: true,
+    badge: "1 Month #1",
+    brandColor: "#24A1DE",
+    icon: "telegram",
+    logoUrl: "/logos/telegram.svg",
+    features: ["4GB file upload limit", "Double limits across channels", "Star badge profile", "1 Month direct activation"]
   },
   {
     id: "tg-premium-3m",
@@ -226,7 +243,7 @@ export const flyerMainServices = [
     badge: "xAI Tech",
     brandColor: "#111827",
     icon: "supergrok",
-    logoUrl: "https://cdn.simpleicons.org/x/000000",
+    logoUrl: "/logos/grok.svg",
     features: ["Real-time X data intelligence", "Deep reasoning mode", "Generative analysis", "Instant access"]
   },
   {
@@ -243,7 +260,7 @@ export const flyerMainServices = [
     badge: "1 Year Full",
     brandColor: "#00C4CC",
     icon: "canva",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/08/Canva_icon_2021.svg",
+    logoUrl: "/logos/canva.svg",
     features: ["1 Full Year activation", "Magic AI Studio & resize", "1-click background remover", "Private team/account"]
   }
 ];
@@ -262,7 +279,7 @@ export const vpnPlans = [
     description: "Lightning-fast high security VPN with servers across 94+ global locations.",
     brandColor: "#DA3940",
     icon: "expressvpn",
-    logoUrl: "https://cdn.simpleicons.org/expressvpn/DA3940",
+    logoUrl: "/logos/expressvpn.svg",
     features: ["Ultra high speeds", "94+ country locations", "Military-grade encryption", "Instant setup"]
   },
   {
@@ -277,7 +294,7 @@ export const vpnPlans = [
     description: "Protect all your devices with CleanWeb ad blocker and strict zero-logs policy.",
     brandColor: "#18868B",
     icon: "surfshark",
-    logoUrl: "https://cdn.simpleicons.org/surfshark/18868B",
+    logoUrl: "/logos/surfshark.svg",
     features: ["Unlimited devices", "CleanWeb ad blocker", "Strict no-logs policy", "Fast streaming"]
   },
   {
@@ -292,7 +309,7 @@ export const vpnPlans = [
     description: "Private Internet Access with 10Gbps NextGen servers and open-source transparency.",
     brandColor: "#78B833",
     icon: "pia",
-    logoUrl: "https://cdn.simpleicons.org/privateinternetaccess/78B833",
+    logoUrl: "/logos/pia.svg",
     features: ["Private Internet Access", "10Gbps servers", "Open source transparency", "No logs recorded"]
   },
   {
@@ -307,7 +324,7 @@ export const vpnPlans = [
     description: "Bank-grade encryption, optimized streaming servers, and DNS leak prevention.",
     brandColor: "#FF7800",
     icon: "avast",
-    logoUrl: "https://cdn.simpleicons.org/avast/FF7800",
+    logoUrl: "/logos/avast.svg",
     features: ["Bank-grade security", "Fast streaming servers", "DNS leak protection", "Simple 1-click connect"]
   },
   {
@@ -322,7 +339,7 @@ export const vpnPlans = [
     description: "Protected by Swiss privacy laws, NetShield malware filter, and Tor over VPN.",
     brandColor: "#6D4AFF",
     icon: "proton",
-    logoUrl: "https://cdn.simpleicons.org/protonvpn/6D4AFF",
+    logoUrl: "/logos/proton.svg",
     features: ["Swiss privacy laws", "NetShield malware filter", "Tor over VPN integration", "High speed"]
   },
   {
@@ -337,7 +354,7 @@ export const vpnPlans = [
     description: "Decentralized dVPN node network with residential IPs to unblock any restricted service.",
     brandColor: "#7535D4",
     icon: "mysterium",
-    logoUrl: "https://cdn.simpleicons.org/mysterium/7535D4",
+    logoUrl: "/logos/mysterium.svg",
     features: ["Decentralized dVPN node", "Residential IPs", "Unblock any restricted site", "Pay-as-you-go speed"]
   }
 ];
@@ -357,7 +374,7 @@ export const specialtyOffers = [
     popular: true,
     brandColor: "#4285F4",
     icon: "google",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg",
+    logoUrl: "/logos/gemini.svg",
     description: "Gemini 1.5 Pro / Ultra model with 1 Million+ token context window and Google Workspace integration.",
     features: [
       "18 Full Months duration",
