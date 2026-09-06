@@ -266,17 +266,29 @@ function updateThemeIcon(isDark) {
   toggleBtn.innerHTML = isDark ? uiIcons.sun : uiIcons.moon;
 }
 
-// 2. Navbar Scroll Style
+// 2. Navbar Scroll Style (Hardware-Accelerated & Throttled)
 function initNavbarScroll() {
   const navbar = document.getElementById('navbar');
   if (!navbar) return;
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 40) {
-      navbar.classList.add('scrolled');
-    } else {
-      navbar.classList.remove('scrolled');
+  let isScrolled = false;
+  let ticking = false;
+
+  const onScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const scrolled = window.scrollY > 40;
+        if (scrolled !== isScrolled) {
+          isScrolled = scrolled;
+          navbar.classList.toggle('scrolled', isScrolled);
+        }
+        ticking = false;
+      });
+      ticking = true;
     }
-  });
+  };
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 }
 
 // 3. Render Curated Featured Grid on Homepage (Exactly 6 Service Boxes)
@@ -3519,16 +3531,24 @@ function initOrderPageAutoFill() {
   }
 }
 
-// 4. Sticky Mobile CTA Interaction
+// 4. Sticky Mobile CTA Interaction (Throttled & Hardware-Friendly)
 function initStickyMobileCta() {
   const ctaBar = document.querySelector('.mobile-sticky-cta');
   if (!ctaBar) return;
+  let isVisible = false;
+  let ticking = false;
 
   const handleScroll = () => {
-    if (window.scrollY > 200) {
-      ctaBar.classList.add('visible');
-    } else {
-      ctaBar.classList.remove('visible');
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const visible = window.scrollY > 200;
+        if (visible !== isVisible) {
+          isVisible = visible;
+          ctaBar.classList.toggle('visible', isVisible);
+        }
+        ticking = false;
+      });
+      ticking = true;
     }
   };
 
