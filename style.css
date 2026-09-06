@@ -216,16 +216,9 @@ body.dark-theme .text-green-strong {
   color: var(--green-400);
 }
 
-/* 4. Top Announcement Bar */
+/* 4. Top Announcement Bar (Removed per user request) */
 .announcement-bar {
-  background: linear-gradient(90deg, #14532D 0%, #15803D 50%, #16A34A 100%);
-  color: #FFFFFF;
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  position: relative;
-  z-index: 50;
-  box-shadow: var(--shadow-sm);
+  display: none !important;
 }
 
 .announcement-container {
@@ -1877,11 +1870,11 @@ body.dark-theme .feature-icon-circle {
   display: block;
 }
 
-/* 13. Footer */
+/* 13. Compact Clean Footer */
 .footer-main {
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
-  padding: 48px 24px 24px;
+  padding: 24px 20px 20px;
   position: relative;
   z-index: 10;
 }
@@ -1891,57 +1884,70 @@ body.dark-theme .feature-icon-circle {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 16px;
 }
 
-.footer-top-grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 40px;
-}
-
-.footer-brand-col p {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  max-width: 320px;
-  margin-top: 12px;
-}
-
-.footer-col h5 {
-  font-size: 1rem;
-  font-weight: 800;
-  margin-bottom: 16px;
-  color: var(--text-heading);
-}
-
-.footer-col ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.footer-col a {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color var(--transition-fast);
-}
-
-.footer-col a:hover {
-  color: var(--green-600);
-}
-
-.footer-bottom-bar {
-  padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
+.footer-compact-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  font-size: 0.85rem;
+}
+
+.footer-brand {
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.footer-nav-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.footer-nav-links a {
   color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+.footer-nav-links a:hover {
+  color: var(--green-600);
+}
+
+.footer-nav-links .footer-wa-link {
+  color: var(--green-600);
+  font-weight: 700;
+}
+
+.footer-bottom-bar {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-subtle);
+}
+
+@media (max-width: 768px) {
+  .footer-main {
+    padding: 20px 16px 85px;
+  }
+  .footer-compact-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .footer-nav-links {
+    gap: 8px 14px;
+  }
 }
 
 /* Floating WhatsApp Quick Action Button */
