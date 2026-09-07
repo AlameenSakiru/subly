@@ -70,12 +70,29 @@ const SafeStorage = {
 };
 
 // Dynamic Catalog Providers (Storefront & Admin Sync)
+// One-time sync to guarantee new official plans (e.g. Telegram Premium 1M, 3M, 6M, 1Y) display for all returning visitors
+const SUBLY_CATALOG_VERSION_KEY = 'subly_catalog_sync_v5';
+if (SafeStorage.getString(SUBLY_CATALOG_VERSION_KEY) !== 'true') {
+  SafeStorage.remove('subly_custom_services');
+  SafeStorage.setString(SUBLY_CATALOG_VERSION_KEY, 'true');
+}
+
 export function getEffectiveServices() {
   const custom = SafeStorage.getJSON('subly_custom_services', null);
-  if (Array.isArray(custom) && custom.length > 0) {
-    return custom;
+  if (!Array.isArray(custom) || custom.length === 0) {
+    return servicesData;
   }
-  return servicesData;
+
+  // Ensure any newly added official services (like Telegram Premium 1M/3M/6M/1Y) are merged into custom storage
+  const existingIds = new Set(custom.map(s => s.id));
+  const missingDefaults = servicesData.filter(s => !existingIds.has(s.id));
+  if (missingDefaults.length > 0) {
+    const merged = [...custom, ...missingDefaults];
+    SafeStorage.setJSON('subly_custom_services', merged);
+    return merged;
+  }
+
+  return custom;
 }
 
 export function saveCustomServices(list) {
@@ -586,7 +603,7 @@ function initOrderPage() {
   const targetId = urlParams.get('id');
 
   if (targetId) {
-    const effectiveTargetId = (targetId === 'tg-premium') ? 'tg-premium-3m' : targetId;
+    const effectiveTargetId = (targetId === 'tg-premium' || targetId === 'tg-premium-1') ? 'tg-premium-1m' : targetId;
     const matchingOption = Array.from(selectDropdown.options).find(opt => opt.value === effectiveTargetId);
     if (matchingOption) {
       selectDropdown.value = effectiveTargetId;
