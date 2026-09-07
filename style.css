@@ -6136,6 +6136,13 @@ body.dark-theme .warranty-guide-box {
   box-shadow: 0 4px 14px rgba(253, 29, 29, 0.4);
 }
 
+.social-icon-btn.social-tt:hover {
+  background: #000000;
+  color: #FFFFFF;
+  border-color: #000000;
+  box-shadow: 0 4px 14px rgba(254, 44, 85, 0.45);
+}
+
 /* Drawer Social Section */
 .drawer-social-section {
   padding: 14px 0 10px;
