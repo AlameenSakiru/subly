@@ -2784,6 +2784,89 @@ function initAdminModals() {
   let pendingDeleteId = null;
   let pendingDeleteType = null;
 
+  const logoInput = document.getElementById('product-edit-logo');
+  const fileInput = document.getElementById('product-edit-file');
+  const uploadBtn = document.getElementById('product-upload-btn');
+  const previewImg = document.getElementById('product-logo-preview-img');
+  const uploadInfo = document.getElementById('product-upload-info');
+
+  // Trigger file selection
+  if (uploadBtn && fileInput) {
+    uploadBtn.onclick = () => fileInput.click();
+  }
+
+  // Handle image upload from device
+  if (fileInput) {
+    fileInput.onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file (SVG, PNG, JPG, or WebP).');
+        return;
+      }
+
+      if (file.size > 8 * 1024 * 1024) {
+        alert('Image file is too large. Please select an image under 8MB.');
+        return;
+      }
+
+      // If SVG, read directly as data URL or text
+      if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          const result = re.target.result;
+          if (logoInput) logoInput.value = result;
+          if (previewImg) previewImg.src = result;
+          if (uploadInfo) uploadInfo.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Bitmap image (PNG, JPG, WebP) -> optimize with canvas to keep crisp & lightweight
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          const img = new Image();
+          img.onload = () => {
+            const maxDim = 256;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const optimizedDataUrl = canvas.toDataURL('image/png');
+            if (logoInput) logoInput.value = optimizedDataUrl;
+            if (previewImg) previewImg.src = optimizedDataUrl;
+            if (uploadInfo) uploadInfo.textContent = `✓ ${file.name} (Optimized)`;
+          };
+          img.src = re.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+  }
+
+  // Update live preview when typing or changing preset URL
+  if (logoInput && previewImg) {
+    logoInput.addEventListener('input', () => {
+      const val = logoInput.value.trim();
+      previewImg.src = val || '/logos/spotify.svg';
+      if (uploadInfo && (!fileInput || !fileInput.files || !fileInput.files.length)) {
+        uploadInfo.textContent = val.startsWith('data:') ? 'Custom image loaded' : (val ? 'Preset / URL selected' : 'Supports SVG, PNG, JPG, WebP');
+      }
+    });
+  }
+
   // Open Modal to Add New Product
   if (addProductBtn) {
     addProductBtn.onclick = () => {
@@ -2792,6 +2875,10 @@ function initAdminModals() {
       const titleEl = document.getElementById('product-modal-title');
       if (idEl) idEl.value = '';
       if (titleEl) titleEl.textContent = 'Add New Subscription';
+      if (fileInput) fileInput.value = '';
+      if (logoInput) logoInput.value = '/logos/spotify.svg';
+      if (previewImg) previewImg.src = '/logos/spotify.svg';
+      if (uploadInfo) uploadInfo.textContent = 'Supports SVG, PNG, JPG, WebP';
       if (productModal) productModal.style.display = 'flex';
     };
   }
@@ -2934,6 +3021,11 @@ function initAdminModals() {
         if (periodInput) periodInput.value = service.period || '';
         if (badgeInput) badgeInput.value = service.badge || '';
         if (logoInput) logoInput.value = service.logoUrl || '/logos/spotify.svg';
+        if (previewImg) previewImg.src = service.logoUrl || '/logos/spotify.svg';
+        if (fileInput) fileInput.value = '';
+        if (uploadInfo) {
+          uploadInfo.textContent = (service.logoUrl && service.logoUrl.startsWith('data:')) ? 'Uploaded image loaded' : 'Current icon loaded';
+        }
         if (descInput) descInput.value = service.desc || service.description || '';
         if (featInput) featInput.value = service.features ? (Array.isArray(service.features) ? service.features.join(', ') : service.features) : '';
         if (featuredInput) featuredInput.checked = !!service.featured;

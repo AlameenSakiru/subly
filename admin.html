@@ -579,30 +579,57 @@
           </div>
         </div>
 
-        <div class="compact-grid-2">
-          <div class="form-group-compact">
-            <label for="product-edit-badge" class="compact-label">Badge Tag (Optional)</label>
-            <input type="text" id="product-edit-badge" class="form-control-compact" placeholder="e.g. Bestseller, 4K UHD, Hot" />
+        <div class="form-group-compact">
+          <label for="product-edit-badge" class="compact-label">Badge Tag (Optional)</label>
+          <input type="text" id="product-edit-badge" class="form-control-compact" placeholder="e.g. Bestseller, 4K UHD, Hot" />
+        </div>
+
+        <!-- Product Icon / Logo Uploader & Live Preview -->
+        <div class="form-group-compact" style="margin-bottom: 14px;">
+          <label class="compact-label" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Brand Icon / Logo *</span>
+            <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 500;">Upload image or choose preset</span>
+          </label>
+          
+          <div class="product-logo-picker-container" style="display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.03); border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); padding: 12px 14px;">
+            <!-- Live Preview Box -->
+            <div class="product-logo-preview-box" style="width: 52px; height: 52px; min-width: 52px; border-radius: 12px; background: rgba(0,0,0,0.35); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+              <img id="product-logo-preview-img" src="/logos/spotify.svg" alt="Preview" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='/logos/spotify.svg'" />
+            </div>
+
+            <!-- Upload Action & URL Input -->
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <input type="file" id="product-edit-file" accept="image/png, image/jpeg, image/svg+xml, image/webp" style="display: none;" />
+                <button type="button" id="product-upload-btn" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <span>Choose Image File</span>
+                </button>
+                <span id="product-upload-info" style="font-size: 0.76rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 200px;">Supports SVG, PNG, JPG, WebP</span>
+              </div>
+              <input type="text" id="product-edit-logo" class="form-control-compact" list="product-logo-datalist" placeholder="/logos/spotify.svg or paste Image URL" style="font-size: 0.8rem; padding: 7px 10px;" />
+            </div>
           </div>
 
-          <div class="form-group-compact">
-            <label for="product-edit-logo" class="compact-label">Logo Asset Path or URL</label>
-            <input type="text" id="product-edit-logo" class="form-control-compact" list="product-logo-datalist" placeholder="/logos/spotify.svg or Image URL" />
-            <datalist id="product-logo-datalist">
-              <option value="/logos/spotify.svg">Spotify</option>
-              <option value="/logos/netflix.svg">Netflix</option>
-              <option value="/logos/youtube.svg">YouTube</option>
-              <option value="/logos/chatgpt.svg">ChatGPT</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/a/ad/Capcut-icon.svg">CapCut</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg">Prime Video</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/0/08/Canva_icon_2021.svg">Canva</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg">Google Gemini</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg">Telegram</option>
-              <option value="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg">X (Twitter)</option>
-              <option value="https://cdn.simpleicons.org/expressvpn/DA3940">ExpressVPN</option>
-              <option value="https://cdn.simpleicons.org/surfshark/18868B">Surfshark</option>
-            </datalist>
-          </div>
+          <datalist id="product-logo-datalist">
+            <option value="/logos/spotify.svg">Spotify</option>
+            <option value="/logos/netflix.svg">Netflix</option>
+            <option value="/logos/youtube.svg">YouTube</option>
+            <option value="/logos/chatgpt.svg">ChatGPT</option>
+            <option value="/logos/canva.svg">Canva</option>
+            <option value="/logos/prime.svg">Prime Video</option>
+            <option value="/logos/capcut.svg">CapCut</option>
+            <option value="/logos/gemini.svg">Google Gemini</option>
+            <option value="/logos/claude.svg">Claude AI</option>
+            <option value="/logos/grok.svg">Grok (xAI)</option>
+            <option value="/logos/telegram.svg">Telegram</option>
+            <option value="/logos/x.svg">X (Twitter)</option>
+            <option value="/logos/crunchyroll.svg">Crunchyroll</option>
+            <option value="/logos/coursera.svg">Coursera</option>
+            <option value="/logos/tradingview.svg">TradingView</option>
+            <option value="/logos/expressvpn.svg">ExpressVPN</option>
+            <option value="/logos/surfshark.svg">Surfshark</option>
+          </datalist>
         </div>
 
         <div class="form-group-compact">
