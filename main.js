@@ -941,6 +941,15 @@ export function isOrderOwnedByCustomer(order, customer) {
     return true;
   }
 
+  // Fallback matching by customer name
+  if (customer.name && order.customerName) {
+    const cName = customer.name.toLowerCase().trim();
+    const oName = order.customerName.toLowerCase().trim();
+    if (cName.length > 3 && oName.length > 3 && (cName === oName || cName.includes(oName) || oName.includes(cName))) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -1318,10 +1327,6 @@ function initOrderHistoryPage() {
         waStr.includes(cleanQuery)
       );
     });
-
-    if (clearBtn) {
-      clearBtn.style.display = currentOrders.length > 0 ? 'inline-block' : 'none';
-    }
 
     if (filtered.length === 0) {
       listContainer.innerHTML = `
