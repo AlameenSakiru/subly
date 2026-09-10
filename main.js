@@ -14,6 +14,14 @@ import {
 } from './data/accounts.js';
 
 import { brandIcons, uiIcons, categoryIcons } from './data/icons.js';
+import { inject } from '@vercel/analytics';
+
+// Auto-initialize Vercel Web Analytics
+try {
+  inject();
+} catch (e) {
+  // Graceful fallback for non-Vercel environments
+}
 
 // Security Helper: HTML Entity Escaping (Prevents DOM XSS)
 export function escapeHtml(str) {
@@ -4022,7 +4030,7 @@ export function getApiEndpoint(path) {
   if (typeof window === 'undefined') return path;
   const host = window.location.hostname;
   // If running on Vercel, Cloudflare, or custom domains
-  if (host.includes('vercel.app') || host.includes('workers.dev') || host.includes('subly.store') || host.includes('subly.com.ng')) {
+  if (host.includes('subly.ing') || host.includes('vercel.app') || host.includes('workers.dev') || host.includes('subly.store') || host.includes('subly.com.ng')) {
     return path;
   }
   // If running on Vite dev server port 5173 (which proxies /api)
