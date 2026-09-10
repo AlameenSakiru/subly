@@ -5,6 +5,15 @@ import { defineConfig } from 'vite';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://subly.alameens2008.workers.dev',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   build: {
     emptyOutDir: true,
     sourcemap: false,

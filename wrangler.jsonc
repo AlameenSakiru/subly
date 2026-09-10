@@ -1,10 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "subly",
+  "main": "worker.js",
   "compatibility_date": "2026-09-06",
   "assets": {
     "directory": "./dist",
     "html_handling": "drop-trailing-slash",
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "subly-db",
+      "database_id": "c07404d1-c56d-4513-9752-f4011fbb3a14"
+    }
+  ]
 }

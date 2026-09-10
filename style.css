@@ -6165,3 +6165,504 @@ body.dark-theme .warranty-guide-box {
   align-items: center;
   gap: 12px;
 }
+
+/* ==========================================================================
+   19. ADMIN NEXT EXPIRATION BATCHES & REAL-TIME SYNC STYLES
+   ========================================================================== */
+.admin-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  color: #16A34A;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-subscription-batches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.batch-filter-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+[data-theme="dark"] .batch-filter-group {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.batch-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.batch-filter-btn:hover {
+  color: var(--text-heading);
+}
+
+.batch-filter-btn.active {
+  background: var(--bg-surface) !important;
+  color: var(--text-heading) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  font-weight: 700;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-red {
+  background: #ef4444;
+}
+
+.dot-amber {
+  background: #f59e0b;
+}
+
+.dot-blue {
+  background: #3b82f6;
+}
+
+.admin-section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.batch-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.batch-card:hover {
+  border-color: rgba(22, 163, 74, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+.batch-card-urgent {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.02) 0%, var(--bg-surface) 100%);
+}
+
+.batch-card-soon {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.02) 0%, var(--bg-surface) 100%);
+}
+
+.batch-card-week,
+.batch-card-healthy {
+  border-color: var(--border-color);
+}
+
+.batch-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.batch-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.batch-logo-box {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.batch-service-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.batch-service-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-count-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: inline-block;
+}
+
+.batch-urgency-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.batch-badge-urgent {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.batch-badge-soon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.batch-badge-week {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.batch-badge-healthy {
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.batch-countdown-section {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+}
+
+[data-theme="dark"] .batch-countdown-section {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.batch-countdown-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+.batch-countdown-clock {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.batch-clock-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.batch-clock-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.batch-clock-text {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, monospace;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: var(--green-600);
+}
+
+.batch-clock-text.warning {
+  color: #D97706;
+}
+
+.batch-clock-text.expired {
+  color: #EF4444;
+}
+
+.batch-next-customer-info {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.batch-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.batch-modal-countdown-badge {
+  display: inline-block;
+  font-family: 'Outfit', monospace;
+  font-size: 1.1rem;
+  font-weight: 900;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(34, 197, 94, 0.15);
+  color: #16A34A;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+@media (max-width: 640px) {
+  .admin-subscription-batches-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   CUSTOMER FEEDBACK & EXPERIENCE MODULE (STOREFRONT & ADMIN)
+   ========================================================================== */
+
+.feedback-section {
+  padding: 60px 20px;
+  max-width: var(--container-max, 1200px);
+  margin: 0 auto;
+}
+
+.feedback-card-wrapper {
+  max-width: 580px;
+  margin: 0 auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .feedback-card-wrapper {
+    padding: 22px 18px;
+  }
+}
+
+.feedback-rating-group {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.star-rating-selector {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--border-color);
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.star-btn svg {
+  transition: transform 0.15s ease, fill 0.15s ease;
+}
+
+.star-btn:hover svg {
+  transform: scale(1.15);
+}
+
+.star-btn.active {
+  color: #f59e0b;
+}
+
+.star-rating-hint {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.feedback-status-banner {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.feedback-status-banner.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.feedback-status-banner.success {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+.feedback-success-state {
+  text-align: center;
+  padding: 24px 10px;
+}
+
+.feedback-check-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+/* Admin Feedback Cards */
+.admin-feedback-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-feedback-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease;
+}
+
+.admin-feedback-card:hover {
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+.admin-feedback-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-feedback-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-feedback-stars {
+  display: inline-flex;
+  gap: 2px;
+  color: #f59e0b;
+}
+
+.feedback-cat-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .feedback-cat-tag {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-feedback-msg {
+  font-size: 0.88rem;
+  color: var(--text-body);
+  line-height: 1.5;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme="dark"] .admin-feedback-msg {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-feedback-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.admin-feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

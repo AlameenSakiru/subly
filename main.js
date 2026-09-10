@@ -77,6 +77,14 @@ if (SafeStorage.getString(SUBLY_CATALOG_VERSION_KEY) !== 'true') {
   SafeStorage.setString(SUBLY_CATALOG_VERSION_KEY, 'true');
 }
 
+// One-time storage migration to purge unpartitioned/mixed store orders from customer local storage
+const SUBLY_ORDERS_ISOLATION_KEY = 'subly_orders_isolation_v7';
+if (SafeStorage.getString(SUBLY_ORDERS_ISOLATION_KEY) !== 'true') {
+  SafeStorage.remove('subly_customer_orders_v1');
+  SafeStorage.remove('subly_guest_orders_v1');
+  SafeStorage.setString(SUBLY_ORDERS_ISOLATION_KEY, 'true');
+}
+
 export function getEffectiveServices() {
   const custom = SafeStorage.getJSON('subly_custom_services', null);
   if (!Array.isArray(custom) || custom.length === 0) {
@@ -179,6 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('thank-you-card')) {
     initThankYouPage();
   }
+
+  // 11. Storefront Feedback Form
+  initStorefrontFeedback();
+
+  // 12. Background Cloudflare D1 Synchronization
+  CloudSync.fetchCustomers().catch(() => {});
+  CloudSync.fetchOrders().catch(() => {});
+  CloudSync.fetchFeedback().catch(() => {});
 });
 
 // Dynamic Storewide Settings (Announcement Bar & WhatsApp line sync)
@@ -882,17 +898,138 @@ Hi Subly! Please send bank details for payment & instant delivery.`;
   if (successBox) successBox.style.display = 'block';
 }
 
-// 11. Customer Order History Management (XSS Protected & Resilient)
+// 11. Customer Order History Management (XSS Protected, Account-Isolated & Resilient)
 const SUBLY_ORDERS_KEY = 'subly_customer_orders_v1';
+const SUBLY_GUEST_ORDERS_KEY = 'subly_guest_orders_v1';
 
-function getOrderHistory() {
+// Canonical Phone Number Normalizer (Extracts matching 10-digit suffix across +234/080/spaces/dashes)
+export function normalizePhone(phone) {
+  if (!phone) return '';
+  const digits = String(phone).replace(/[^\d]/g, '');
+  if (digits.length >= 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+}
+
+// Ownership Verification Helper: Returns true ONLY if order belongs to the specified customer
+export function isOrderOwnedByCustomer(order, customer) {
+  if (!order || !customer) return false;
+
+  const custPhoneNorm = normalizePhone(customer.whatsapp || customer.phone || '');
+  const orderPhoneNorm = normalizePhone(order.whatsapp || '');
+
+  if (custPhoneNorm && orderPhoneNorm && custPhoneNorm === orderPhoneNorm) {
+    return true;
+  }
+
+  const custEmail = (customer.email || '').toLowerCase().trim();
+  const orderEmail = (order.email || '').toLowerCase().trim();
+  if (custEmail && orderEmail && custEmail !== 'n/a' && custEmail !== 'none' && custEmail === orderEmail) {
+    return true;
+  }
+
+  if (customer.id && order.customerId && customer.id === order.customerId) {
+    return true;
+  }
+
+  return false;
+}
+
+// Returns all store orders across all users (For Admin Dashboard, Analytics & Cloud Sync)
+export function getAllStoreOrders() {
   return SafeStorage.getJSON(SUBLY_ORDERS_KEY, []);
 }
 
-function saveOrderToHistory(order) {
-  const orders = getOrderHistory();
-  orders.unshift(order); // Add newest order first
-  SafeStorage.setJSON(SUBLY_ORDERS_KEY, orders.slice(0, 30)); // Keep up to 30 recent orders
+// Returns ONLY the orders and receipts belonging to the authenticated customer (or current guest session)
+export function getCustomerOrders(customer = getActiveCustomer()) {
+  const allOrders = getAllStoreOrders();
+
+  if (customer && (customer.whatsapp || customer.email || customer.name)) {
+    // 1. Filter store orders strictly owned by this customer
+    const matchedOrders = allOrders.filter(o => isOrderOwnedByCustomer(o, customer));
+
+    // 2. Seamlessly merge CRM active subscriptions if any exist without a direct order slip
+    const registeredCustomers = getRegisteredCustomers();
+    const custRecord = registeredCustomers.find(c => {
+      const cPhone = normalizePhone(c.whatsapp);
+      const targetPhone = normalizePhone(customer.whatsapp);
+      return (cPhone && targetPhone && cPhone === targetPhone) || (c.id && customer.id && c.id === customer.id);
+    });
+
+    if (custRecord && Array.isArray(custRecord.subscriptions) && custRecord.subscriptions.length > 0) {
+      const existingNames = new Set(matchedOrders.map(o => (o.serviceName || '').toLowerCase().trim()));
+      
+      custRecord.subscriptions.forEach(sub => {
+        const subName = (sub.serviceName || '').toLowerCase().trim();
+        if (!existingNames.has(subName)) {
+          const startDate = sub.startDate ? new Date(sub.startDate) : new Date();
+          matchedOrders.push({
+            id: sub.id || ('SUB-' + Math.floor(10000 + Math.random() * 90000)),
+            createdAt: sub.startDate || new Date().toISOString(),
+            timestamp: startDate.getTime(),
+            date: startDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+            customerName: custRecord.name || customer.name || 'Valued Customer',
+            whatsapp: custRecord.whatsapp || customer.whatsapp || '',
+            email: custRecord.email || customer.email || '',
+            serviceId: sub.serviceId || '',
+            serviceName: sub.serviceName || 'Active Subscription',
+            price: sub.planPrice || 'Standard',
+            period: sub.period || 'Active Plan',
+            logoUrl: sub.logoUrl || '/logos/spotify.svg',
+            status: sub.status === 'Expired' ? 'Expired' : 'Active Subscription',
+            waUrl: `https://wa.me/2347047929177?text=${encodeURIComponent(`Hi Subly! Inquiry about my subscription ${sub.serviceName}.`)}`
+          });
+          existingNames.add(subName);
+        }
+      });
+    }
+
+    // Sort newest first
+    matchedOrders.sort((a, b) => {
+      const tA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const tB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return tB - tA;
+    });
+
+    return matchedOrders;
+  }
+
+  // If in Guest Session (not logged in): Return ONLY orders created locally in this specific browser guest session
+  const guestOrderIds = new Set(SafeStorage.getJSON(SUBLY_GUEST_ORDERS_KEY, []));
+  if (guestOrderIds.size === 0) {
+    return [];
+  }
+  return allOrders.filter(o => o && o.id && guestOrderIds.has(o.id));
+}
+
+// User-facing backward compatibility helper
+export function getOrderHistory() {
+  return getCustomerOrders();
+}
+
+export function saveOrderToHistory(order) {
+  const activeCustomer = getActiveCustomer();
+  if (activeCustomer) {
+    order.customerId = activeCustomer.id || '';
+    if (!order.whatsapp && activeCustomer.whatsapp) order.whatsapp = activeCustomer.whatsapp;
+    if (!order.email && activeCustomer.email) order.email = activeCustomer.email;
+  } else {
+    // Record in guest order IDs for this device session
+    const guestOrderIds = SafeStorage.getJSON(SUBLY_GUEST_ORDERS_KEY, []);
+    if (order.id && !guestOrderIds.includes(order.id)) {
+      guestOrderIds.unshift(order.id);
+      SafeStorage.setJSON(SUBLY_GUEST_ORDERS_KEY, guestOrderIds.slice(0, 30));
+    }
+  }
+
+  const allOrders = getAllStoreOrders();
+  const filtered = allOrders.filter(o => o.id !== order.id);
+  filtered.unshift(order);
+  SafeStorage.setJSON(SUBLY_ORDERS_KEY, filtered.slice(0, 100)); // Keep up to 100 store orders
+  SafeStorage.setString('subly_sync_trigger', String(Date.now()));
+  window.dispatchEvent(new CustomEvent('subly:data-updated', { detail: { type: 'orders' } }));
+  CloudSync.syncOrder(order);
 }
 
 function initOrderHistoryPage() {
@@ -900,12 +1037,11 @@ function initOrderHistoryPage() {
   const activeSubsContainer = document.getElementById('active-subscriptions-container');
   const listContainer = document.getElementById('orders-history-list');
   const searchInput = document.getElementById('order-history-search');
-  const clearBtn = document.getElementById('clear-history-btn');
   const tabBtns = document.querySelectorAll('.account-tab-btn');
   const tabContents = document.querySelectorAll('.account-tab-content');
 
   const customer = getActiveCustomer();
-  const orders = getOrderHistory();
+  const orders = getCustomerOrders(customer);
 
   // 1. Account Tabs Switching
   tabBtns.forEach(btn => {
@@ -927,7 +1063,7 @@ function initOrderHistoryPage() {
       const initial = firstName.charAt(0).toUpperCase();
       const orderCount = orders.length;
 
-      // Calculate total estimate spent (summing clean numbers)
+      // Calculate total estimate spent for THIS customer
       let totalSpent = 0;
       orders.forEach(o => {
         const num = parseInt(String(o.price || '').replace(/[^\d]/g, ''), 10);
@@ -1020,7 +1156,7 @@ function initOrderHistoryPage() {
     }
   }
 
-  // 3. Render Active Plans & Renewal Countdown Cards
+  // 3. Render Active Plans & Renewal Countdown Cards (Strictly for this customer)
   if (activeSubsContainer) {
     if (orders.length === 0) {
       activeSubsContainer.innerHTML = `
@@ -1029,7 +1165,7 @@ function initOrderHistoryPage() {
             <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           </div>
           <h3>No Active Subscriptions Yet</h3>
-          <p>When you purchase a subscription on Subly, your countdown timer, warranty replacement badge, and 1-click renewal will appear right here.</p>
+          <p>${customer ? 'You do not have any active subscriptions on this account yet. Browse our subscriptions to get started.' : 'Sign In or place an order to track your active subscription countdowns and warranty guarantees.'}</p>
           <a href="services.html" class="btn btn-forest btn-md">
             <span>Browse Subscriptions &rarr;</span>
           </a>
@@ -1156,11 +1292,12 @@ function initOrderHistoryPage() {
     }
   }
 
-  // 4. Render All Orders List & Search Filter
+  // 4. Render All Orders List & Search Filter (Strictly for this customer)
   function renderHistory(query = '') {
+    const currentOrders = getCustomerOrders(customer);
     const cleanQuery = query.toLowerCase().trim();
 
-    const filtered = orders.filter(o => {
+    const filtered = currentOrders.filter(o => {
       if (!cleanQuery) return true;
       const idStr = String(o.id || '').toLowerCase();
       const srvStr = String(o.serviceName || '').toLowerCase();
@@ -1175,7 +1312,7 @@ function initOrderHistoryPage() {
     });
 
     if (clearBtn) {
-      clearBtn.style.display = orders.length > 0 ? 'inline-block' : 'none';
+      clearBtn.style.display = currentOrders.length > 0 ? 'inline-block' : 'none';
     }
 
     if (filtered.length === 0) {
@@ -1185,7 +1322,7 @@ function initOrderHistoryPage() {
             <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
           </div>
           <h3>No Transactions Found</h3>
-          <p>${orders.length === 0 ? 'You have not placed any orders on this device yet. Browse our subscriptions to get started.' : 'No orders matched your search term.'}</p>
+          <p>${currentOrders.length === 0 ? (customer ? 'You have not placed any orders on this account yet. Browse our subscriptions to get started.' : 'You have not placed any orders on this device yet.') : 'No orders matched your search term.'}</p>
           <a href="services.html" class="btn btn-forest btn-md">
             <span>Browse Subscriptions &rarr;</span>
           </a>
@@ -1263,16 +1400,6 @@ function initOrderHistoryPage() {
     });
   }
 
-  // Clear history handler
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear your local order history?')) {
-        SafeStorage.remove(SUBLY_ORDERS_KEY);
-        renderHistory();
-        if (activeSubsContainer) activeSubsContainer.innerHTML = '';
-      }
-    });
-  }
 
   // 5. Populate Warranty Claim Order Dropdown & Form Handler
   const claimOrderSelect = document.getElementById('claim-order-select');
@@ -1361,11 +1488,12 @@ Hi Subly Support! Please help me resolve this issue under my 100% replacement wa
     });
   }
 
-  // 7. JSON History Export Handler
+  // 7. JSON History Export Handler (Scoped to this customer)
   const exportBtn = document.getElementById('export-history-json-btn');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orders, null, 2));
+      const myOrders = getCustomerOrders(customer);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(myOrders, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
       downloadAnchor.setAttribute("download", `subly-orders-${Date.now()}.json`);
@@ -1442,10 +1570,69 @@ function initAdminPanel() {
     renderAdminProducts();
     renderAdminAccounts();
     renderAdminCustomers();
+    renderAdminFeedback();
     initAdminTabs();
     initAdminModals();
     initCustomerModals();
     initAdminSettings();
+
+    // Hook up manual Cloud Sync button on Registered Customers directory
+    const refreshCustBtn = document.getElementById('admin-refresh-customers-btn');
+    if (refreshCustBtn && !refreshCustBtn.dataset.bound) {
+      refreshCustBtn.dataset.bound = 'true';
+      refreshCustBtn.addEventListener('click', async () => {
+        refreshCustBtn.disabled = true;
+        const origHtml = refreshCustBtn.innerHTML;
+        refreshCustBtn.innerHTML = '<span>Syncing...</span>';
+        try {
+          await CloudSync.fetchCustomers();
+          renderAdminCustomers();
+          renderAdminOverview();
+        } finally {
+          refreshCustBtn.disabled = false;
+          refreshCustBtn.innerHTML = origHtml;
+        }
+      });
+    }
+
+    // Hook up manual Cloud Sync button on Customer Feedback tab
+    const refreshFeedbackBtn = document.getElementById('admin-refresh-feedback-btn');
+    if (refreshFeedbackBtn && !refreshFeedbackBtn.dataset.bound) {
+      refreshFeedbackBtn.dataset.bound = 'true';
+      refreshFeedbackBtn.addEventListener('click', async () => {
+        refreshFeedbackBtn.disabled = true;
+        const origHtml = refreshFeedbackBtn.innerHTML;
+        refreshFeedbackBtn.innerHTML = '<span>Syncing...</span>';
+        try {
+          await CloudSync.fetchFeedback();
+          renderAdminFeedback();
+          renderAdminOverview();
+        } finally {
+          refreshFeedbackBtn.disabled = false;
+          refreshFeedbackBtn.innerHTML = origHtml;
+        }
+      });
+    }
+
+    // Initial Background Sync with Cloudflare D1 Database
+    Promise.allSettled([CloudSync.fetchCustomers(), CloudSync.fetchOrders(), CloudSync.fetchFeedback()]).then(() => {
+      renderAdminOverview();
+      renderAdminCustomers();
+      renderAdminFeedback();
+    });
+
+    // Real-time 10-second polling for multi-device sync
+    if (!window._sublyAdminPoller) {
+      window._sublyAdminPoller = setInterval(() => {
+        if (sessionStorage.getItem('subly_admin_authenticated') === 'true') {
+          Promise.allSettled([CloudSync.fetchCustomers(), CloudSync.fetchOrders(), CloudSync.fetchFeedback()]).then(() => {
+            renderAdminCustomers();
+            renderAdminOverview();
+            renderAdminFeedback();
+          });
+        }
+      }, 10000);
+    }
   }
 
   // Backward compatibility alias so any product modal call works cleanly
@@ -1515,7 +1702,20 @@ function initAdminTabs() {
 
       if (targetTab === 'overview') renderAdminOverview();
       if (targetTab === 'analytics') renderAdminAnalytics();
-      if (targetTab === 'customers') renderAdminCustomers();
+      if (targetTab === 'customers') {
+        renderAdminCustomers();
+        CloudSync.fetchCustomers().then(() => {
+          renderAdminCustomers();
+          renderAdminOverview();
+        });
+      }
+      if (targetTab === 'feedback') {
+        renderAdminFeedback();
+        CloudSync.fetchFeedback().then(() => {
+          renderAdminFeedback();
+          renderAdminOverview();
+        });
+      }
       if (targetTab === 'products') renderAdminProducts();
       if (targetTab === 'accounts') renderAdminAccounts();
     });
@@ -1524,10 +1724,11 @@ function initAdminTabs() {
 
 // Admin Overview & Metrics Renderer
 function renderAdminOverview() {
-  const orders = getOrderHistory();
+  const orders = getAllStoreOrders();
   const services = getEffectiveServices();
   const accounts = getEffectiveAccounts();
   const customers = getRegisteredCustomers();
+  const feedbackList = getCustomerFeedback();
 
   // 1. Calculate Metrics
   const totalOrdersEl = document.getElementById('metric-total-orders');
@@ -1537,6 +1738,7 @@ function renderAdminOverview() {
   const prodTabCount = document.getElementById('admin-product-count-tab');
   const accTabCount = document.getElementById('admin-accounts-count-tab');
   const custTabCount = document.getElementById('admin-customer-count-tab');
+  const fbTabCount = document.getElementById('admin-feedback-count-tab');
 
   let totalNaira = 0;
   orders.forEach(o => {
@@ -1553,6 +1755,10 @@ function renderAdminOverview() {
   if (prodTabCount) prodTabCount.textContent = services.length;
   if (accTabCount) accTabCount.textContent = accounts.length;
   if (custTabCount) custTabCount.textContent = customers.length;
+  if (fbTabCount) fbTabCount.textContent = feedbackList.length;
+
+  // 1b. Render Next Expiration Batches Radar by Subscription
+  renderAdminSubscriptionBatches();
 
   // 2. Render Orders Table
   const ordersTableBody = document.getElementById('admin-orders-table-body');
@@ -1621,11 +1827,12 @@ function renderAdminOverview() {
     sel.addEventListener('change', (e) => {
       const orderId = e.target.dataset.id;
       const newStatus = e.target.value;
-      const allOrders = getOrderHistory();
+      const allOrders = getAllStoreOrders();
       const target = allOrders.find(o => o.id === orderId);
       if (target) {
         target.status = newStatus;
         SafeStorage.setJSON(SUBLY_ORDERS_KEY, allOrders);
+        CloudSync.updateOrderStatus(orderId, newStatus);
       }
     });
   });
@@ -1633,7 +1840,7 @@ function renderAdminOverview() {
 
 // 2. ANALYTICS DASHBOARD RENDERER
 function renderAdminAnalytics() {
-  const orders = getOrderHistory();
+  const orders = getAllStoreOrders();
   const customers = getRegisteredCustomers();
 
   let totalNaira = 0;
@@ -1768,18 +1975,18 @@ function createWhatsAppRenewalReminderUrl(phone, customerName, sub) {
   }
 
   const message = 
-`*SUBLY SUBSCRIPTION EXPIRATION NOTICE* ⏳
+`*Subly Subscription Renewal Notice*
 
-Hi ${customerName}!
+Hello ${customerName},
 
-Notice from Subly Digital Hub regarding your active service:
-Your subscription for *${sub.serviceName}* (${sub.planPrice || sub.period || 'Active Plan'}) ${urgencyText}
+This is a reminder regarding your subscription with Subly:
+Your plan for *${sub.serviceName}* (${sub.planPrice || sub.period || 'Active Plan'}) ${urgencyText}
 
-- Service: ${sub.serviceName}
-- Plan: ${sub.period || 'Individual'} (${sub.planPrice || 'Standard'})
-- Expiry Date: ${formattedDate}
+• Service: ${sub.serviceName}
+• Plan: ${sub.period || 'Individual'} (${sub.planPrice || 'Standard'})
+• Expiration Date: ${formattedDate}
 
-Reply here on WhatsApp to proceed with instant renewal! 🚀`;
+Please reply to this message to renew your subscription.`;
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
@@ -1813,22 +2020,22 @@ function renderAdminExpiryRadar(customers) {
 
   if (radarCount) {
     if (urgentItems.length === 0) {
-      radarCount.textContent = '✓ All Subscriptions Up to Date';
-      radarCount.style.background = '#dcfce7';
-      radarCount.style.color = '#15803d';
-      radarCount.style.borderColor = '#86efac';
+      radarCount.textContent = 'All Active';
+      radarCount.style.background = 'rgba(22, 163, 74, 0.08)';
+      radarCount.style.color = '#16a34a';
+      radarCount.style.borderColor = 'rgba(22, 163, 74, 0.2)';
     } else {
-      radarCount.textContent = `⚡ ${urgentItems.length} Subscriptions Need Attention`;
-      radarCount.style.background = '#fef3c7';
-      radarCount.style.color = '#92400e';
-      radarCount.style.borderColor = '#fde68a';
+      radarCount.textContent = `${urgentItems.length} require renewal`;
+      radarCount.style.background = 'rgba(239, 68, 68, 0.08)';
+      radarCount.style.color = '#dc2626';
+      radarCount.style.borderColor = 'rgba(239, 68, 68, 0.2)';
     }
   }
 
   if (urgentItems.length === 0) {
     radarCards.innerHTML = `
-      <div style="grid-column: 1 / -1; padding: 14px; text-align: center; font-size: 0.84rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
-        No customer subscriptions expiring within the next 5 days. All accounts are currently active.
+      <div style="grid-column: 1 / -1; padding: 18px; text-align: center; font-size: 0.82rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+        All customer subscriptions are currently active. No accounts expiring within 5 days.
       </div>
     `;
     return;
@@ -1873,6 +2080,357 @@ function renderAdminExpiryRadar(customers) {
       </div>
     `;
   }).join('');
+}
+
+// ==========================================================================
+// 1B. NEXT EXPIRATION BATCHES BY SUBSCRIPTION (OWNER RADAR & COUNTDOWN HUB)
+// ==========================================================================
+let currentBatchFilter = 'all';
+
+function renderAdminSubscriptionBatches(filter = currentBatchFilter) {
+  currentBatchFilter = filter;
+  const gridContainer = document.getElementById('admin-subscription-batches-grid');
+  const countBadge = document.getElementById('batch-total-services-badge');
+  if (!gridContainer) return;
+
+  const customers = getRegisteredCustomers();
+  const services = getEffectiveServices();
+
+  // Group all subscriptions by subscription product
+  const batchMap = new Map();
+
+  // Seed known catalog services
+  services.forEach(srv => {
+    const key = (srv.name || '').trim();
+    if (!key) return;
+    batchMap.set(key, {
+      serviceName: srv.name,
+      serviceId: srv.id,
+      logoUrl: srv.logoUrl || '/logos/spotify.svg',
+      category: srv.category || 'Streaming',
+      price: srv.priceDisplay || '₦800',
+      period: srv.period || '1 Month',
+      customers: []
+    });
+  });
+
+  // Aggregate registered customers into corresponding subscription batches
+  customers.forEach(cust => {
+    const subs = Array.isArray(cust.subscriptions) ? cust.subscriptions : [];
+    subs.forEach(sub => {
+      if (!sub.expiryDate) return;
+      const key = (sub.serviceName || 'Custom Subscription').trim();
+      
+      if (!batchMap.has(key)) {
+        batchMap.set(key, {
+          serviceName: key,
+          serviceId: sub.serviceId || 'custom',
+          logoUrl: sub.logoUrl || '/logos/spotify.svg',
+          category: 'Digital Service',
+          price: sub.planPrice || '₦800',
+          period: sub.period || 'Individual',
+          customers: []
+        });
+      }
+
+      const timer = getLiveTimerData(sub.expiryDate);
+      batchMap.get(key).customers.push({
+        cust,
+        sub,
+        timer
+      });
+    });
+  });
+
+  // Calculate batch metrics
+  const batchList = [];
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  batchMap.forEach((batch) => {
+    if (batch.customers.length === 0) return; // Show active batches
+
+    // Sort customers in this batch by earliest expiration first
+    batch.customers.sort((a, b) => {
+      const aMs = a.timer ? a.timer.msRemaining : 9999999999;
+      const bMs = b.timer ? b.timer.msRemaining : 9999999999;
+      return aMs - bMs;
+    });
+
+    const nextDue = batch.customers[0];
+    const nextTimer = nextDue ? nextDue.timer : null;
+    const msRemaining = nextTimer ? nextTimer.msRemaining : 9999999999;
+
+    let urgency = 'healthy';
+    let urgencyLabel = 'On Track';
+    if (nextTimer && nextTimer.isExpired) {
+      urgency = 'urgent';
+      urgencyLabel = 'Expired';
+    } else if (msRemaining <= oneDay) {
+      urgency = 'urgent';
+      urgencyLabel = 'Due < 24h';
+    } else if (msRemaining <= 3 * oneDay) {
+      urgency = 'soon';
+      urgencyLabel = 'Due in ≤ 3d';
+    } else if (msRemaining <= 7 * oneDay) {
+      urgency = 'week';
+      urgencyLabel = 'This Week';
+    }
+
+    batchList.push({
+      ...batch,
+      nextDue,
+      nextTimer,
+      urgency,
+      urgencyLabel,
+      msRemaining
+    });
+  });
+
+  // Sort batches: soonest expiring batch at the very top!
+  batchList.sort((a, b) => a.msRemaining - b.msRemaining);
+
+  // Update total badge
+  if (countBadge) {
+    if (batchList.length === 0) {
+      countBadge.textContent = '0 Active Batches';
+      countBadge.style.background = 'transparent';
+      countBadge.style.color = 'var(--text-muted)';
+      countBadge.style.borderColor = 'var(--border-color)';
+    } else {
+      const urgentCount = batchList.filter(b => b.urgency === 'urgent').length;
+      if (urgentCount > 0) {
+        countBadge.textContent = `${urgentCount} urgent • ${batchList.length} active`;
+        countBadge.style.background = 'rgba(239, 68, 68, 0.08)';
+        countBadge.style.color = '#dc2626';
+        countBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+      } else {
+        countBadge.textContent = `${batchList.length} active`;
+        countBadge.style.background = 'rgba(22, 163, 74, 0.08)';
+        countBadge.style.color = '#16a34a';
+        countBadge.style.borderColor = 'rgba(22, 163, 74, 0.2)';
+      }
+    }
+  }
+
+  // Filter batches based on selection
+  const filteredBatches = batchList.filter(b => {
+    if (filter === 'all') return true;
+    if (filter === 'urgent') return b.urgency === 'urgent';
+    if (filter === 'soon') return b.urgency === 'urgent' || b.urgency === 'soon';
+    if (filter === 'week') return b.urgency === 'urgent' || b.urgency === 'soon' || b.urgency === 'week';
+    return true;
+  });
+
+  // Setup batch filter buttons active state & click handlers
+  const filterBtns = document.querySelectorAll('.batch-filter-btn');
+  filterBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+    if (!btn.dataset.bound) {
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', () => {
+        renderAdminSubscriptionBatches(btn.dataset.filter);
+      });
+    }
+  });
+
+  if (filteredBatches.length === 0) {
+    gridContainer.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 32px 20px; text-align: center; background: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: var(--radius-lg);">
+        <div style="width: 36px; height: 36px; margin: 0 auto 10px; border-radius: 8px; background: rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <h4 style="font-size: 0.96rem; font-weight: 700; color: var(--text-heading); margin-bottom: 4px;">
+          ${batchList.length === 0 ? 'No Active Subscriptions' : 'No Subscriptions Matching This Filter'}
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); max-width: 440px; margin: 0 auto 14px;">
+          ${batchList.length === 0 ? 'When customers order or are assigned subscriptions, live countdowns and renewal batches appear here.' : 'Switch filter to "All Subscriptions" to view all active product batches.'}
+        </p>
+        ${batchList.length === 0 ? `
+          <button type="button" class="btn btn-forest btn-sm" onclick="document.querySelector('[data-tab=\\'customers\\']')?.click(); document.getElementById('admin-add-customer-btn')?.click();">
+            <span>Add Customer / Assign Plan</span>
+          </button>
+        ` : ''}
+      </div>
+    `;
+    return;
+  }
+
+  gridContainer.innerHTML = filteredBatches.map(batch => {
+    const safeService = escapeHtml(batch.serviceName);
+    const safeLogo = escapeHtml(batch.logoUrl || '/logos/spotify.svg');
+    const subscriberCount = batch.customers.length;
+    const nextSub = batch.nextDue.sub;
+    const nextCust = batch.nextDue.cust;
+    const nextTimer = batch.nextDue.timer;
+
+    const safeCustName = escapeHtml(nextCust.name);
+    const safeCustPhone = escapeHtml(nextCust.whatsapp);
+    const waRemindUrl = createWhatsAppRenewalReminderUrl(nextCust.whatsapp, nextCust.name, nextSub);
+
+    let cardUrgencyClass = 'batch-card-healthy';
+    let badgeClass = 'batch-badge-healthy';
+    if (batch.urgency === 'urgent') {
+      cardUrgencyClass = 'batch-card-urgent';
+      badgeClass = 'batch-badge-urgent';
+    } else if (batch.urgency === 'soon') {
+      cardUrgencyClass = 'batch-card-soon';
+      badgeClass = 'batch-badge-soon';
+    } else if (batch.urgency === 'week') {
+      cardUrgencyClass = 'batch-card-week';
+      badgeClass = 'batch-badge-week';
+    }
+
+    const expDateFormatted = nextSub.expiryDate ? new Date(nextSub.expiryDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+
+    return `
+      <div class="batch-card ${cardUrgencyClass}">
+        <!-- Top: Logo, Service Name & Subscriber Count -->
+        <div class="batch-card-top">
+          <div class="batch-card-brand">
+            <div class="batch-logo-box">
+              <img src="${safeLogo}" alt="${safeService}" class="batch-service-img" onerror="this.src='/logos/spotify.svg'" />
+            </div>
+            <div>
+              <h3 class="batch-service-title">${safeService}</h3>
+              <span class="batch-count-pill">${subscriberCount} ${subscriberCount === 1 ? 'Customer' : 'Customers'} Active</span>
+            </div>
+          </div>
+          <span class="batch-urgency-badge ${badgeClass}">${batch.urgencyLabel}</span>
+        </div>
+
+        <!-- Middle: Next Batch Expiry Countdown -->
+        <div class="batch-countdown-section">
+          <div class="batch-countdown-label">
+            <span>Next Cutoff</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">${expDateFormatted}</span>
+          </div>
+          <div class="batch-countdown-clock">
+            <span class="batch-clock-icon">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </span>
+            <strong class="batch-clock-text ${batch.urgency === 'urgent' ? 'expired' : (batch.urgency === 'soon' ? 'warning' : '')}" data-live-expiry="${nextSub.expiryDate}">
+              ${nextTimer ? nextTimer.timeString : 'Calculating...'}
+            </strong>
+          </div>
+        </div>
+
+        <!-- Customer Summary Row -->
+        <div class="batch-next-customer-info">
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600;">Next Customer</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <strong style="font-size: 0.85rem; color: var(--text-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeCustName}</strong>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">${safeCustPhone}</span>
+          </div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="batch-card-actions">
+          <button type="button" class="btn btn-secondary btn-sm btn-open-batch-modal" data-service="${safeService}" style="flex: 1; justify-content: center; font-size: 0.76rem; padding: 6px 10px;">
+            <span>View Batch (${subscriberCount})</span>
+          </button>
+          <a href="${waRemindUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-forest btn-sm" style="font-size: 0.76rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 5px;" title="Send WhatsApp Renewal Reminder">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 6.45 17.5 2 12.04 2Z"/></svg>
+            <span>Remind</span>
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Attach click listener for "View Batch" buttons
+  gridContainer.querySelectorAll('.btn-open-batch-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const serviceName = btn.dataset.service;
+      const targetBatch = batchList.find(b => b.serviceName === serviceName);
+      if (targetBatch) {
+        openSubscriptionBatchModal(targetBatch);
+      }
+    });
+  });
+
+  // Ensure ticking starts
+  startLiveTimersTick();
+}
+
+function openSubscriptionBatchModal(batch) {
+  const modal = document.getElementById('subscription-batch-modal-overlay');
+  const logoEl = document.getElementById('batch-modal-logo');
+  const titleEl = document.getElementById('batch-modal-title');
+  const subtitleEl = document.getElementById('batch-modal-subtitle');
+  const bannerEl = document.getElementById('batch-modal-summary-banner');
+  const tbodyEl = document.getElementById('batch-modal-table-body');
+  if (!modal) return;
+
+  const safeService = escapeHtml(batch.serviceName);
+  if (logoEl) logoEl.src = batch.logoUrl || '/logos/spotify.svg';
+  if (titleEl) titleEl.textContent = `${batch.serviceName} Expiration Batch`;
+  if (subtitleEl) subtitleEl.textContent = `${batch.customers.length} Active ${batch.customers.length === 1 ? 'Customer' : 'Customers'} • Sorted by soonest expiration`;
+
+  const nextDue = batch.nextDue;
+  const nextTimer = batch.nextTimer;
+  const nextExpDate = nextDue?.sub?.expiryDate ? new Date(nextDue.sub.expiryDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+
+  if (bannerEl) {
+    bannerEl.innerHTML = `
+      <div>
+        <div style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 2px;">NEXT EXPIRING BATCH DUE DATE</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-heading);">${nextExpDate} (${escapeHtml(nextDue.cust.name)})</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px;">COUNTDOWN TO BATCH EXPIRY</div>
+        <span class="batch-modal-countdown-badge" data-live-expiry="${nextDue.sub.expiryDate}">
+          ${nextTimer ? nextTimer.timeString : 'Calculating...'}
+        </span>
+      </div>
+    `;
+  }
+
+  if (tbodyEl) {
+    tbodyEl.innerHTML = batch.customers.map(({ cust, sub, timer }) => {
+      const safeName = escapeHtml(cust.name);
+      const safePhone = escapeHtml(cust.whatsapp);
+      const safePeriod = escapeHtml(sub.period || 'Individual');
+      const safePrice = escapeHtml(sub.planPrice || '₦800');
+      const cleanPhone = safePhone.replace(/[^\d]/g, '');
+      const waRemindUrl = createWhatsAppRenewalReminderUrl(cust.whatsapp, cust.name, sub);
+      const isExp = timer && timer.isExpired;
+      const isSoon = timer && timer.isExpiringSoon;
+
+      return `
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="nav-user-avatar" style="width: 28px; height: 28px; font-size: 0.75rem;">${safeName.charAt(0).toUpperCase()}</div>
+              <div>
+                <strong style="color: var(--text-heading); font-size: 0.88rem;">${safeName}</strong>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">${safePrice}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <a href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener noreferrer" style="color: var(--green-600); font-weight: 700; text-decoration: underline; font-size: 0.84rem;">
+              ${safePhone}
+            </a>
+          </td>
+          <td><span class="admin-status-pill">${safePeriod}</span></td>
+          <td>
+            <span class="radar-item-timer-badge ${isExp ? 'expired' : (isSoon ? 'warning' : '')}" style="font-size: 0.8rem;">
+              <span data-live-expiry="${sub.expiryDate}">${timer ? timer.timeString : 'Active'}</span>
+            </span>
+          </td>
+          <td>
+            <a href="${waRemindUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-forest btn-sm" style="padding: 4px 10px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;" title="Send WhatsApp Renewal Notice">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 6.45 17.5 2 12.04 2Z"/></svg>
+              <span>Remind</span>
+            </a>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  modal.style.display = 'flex';
+  startLiveTimersTick();
 }
 
 // 2. Registered Customers Directory CRM Table Renderer
@@ -2027,7 +2585,7 @@ function renderAdminCustomers() {
     } else if (subCount > 0) {
       statusPill = `<span class="admin-status-pill"><span class="pulse-green-dot"></span> Active (${subCount})</span>`;
     } else {
-      statusPill = `<span class="admin-status-pill" style="opacity: 0.6;">No Plan</span>`;
+      statusPill = `<span class="admin-status-pill" style="background: rgba(59, 130, 246, 0.12); color: #2563eb; border-color: rgba(59, 130, 246, 0.28);">Registered</span>`;
     }
 
     // Registered Date
@@ -2117,6 +2675,7 @@ function renderAdminCustomers() {
       if (confirm(`Are you sure you want to delete customer ${targetName} (${targetPhone})?`)) {
         const remaining = getRegisteredCustomers().filter(c => c.whatsapp !== targetPhone);
         saveRegisteredCustomers(remaining);
+        CloudSync.deleteCustomer(targetPhone);
         renderAdminCustomers();
         renderAdminOverview();
       }
@@ -2612,7 +3171,7 @@ function initCustomerModals() {
   }
 
   if (addCustForm) {
-    addCustForm.addEventListener('submit', (e) => {
+    addCustForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('new-cust-name')?.value?.trim();
       const whatsapp = document.getElementById('new-cust-whatsapp')?.value?.trim();
@@ -2661,6 +3220,16 @@ function initCustomerModals() {
 
       customers.unshift(newCustomer);
       saveRegisteredCustomers(customers);
+
+      // Explicitly push new customer and any subscription to Cloudflare D1
+      try {
+        await CloudSync.syncCustomer(newCustomer);
+        if (initialSubs.length > 0) {
+          await CloudSync.syncSubscription(whatsapp, initialSubs[0]);
+        }
+      } catch (syncErr) {
+        console.warn('Sync on admin add customer error:', syncErr);
+      }
 
       if (addCustModal) addCustModal.style.display = 'none';
       renderAdminCustomers();
@@ -3140,7 +3709,7 @@ function initAdminSettings() {
       const backup = {
         services: getEffectiveServices(),
         accounts: getEffectiveAccounts(),
-        orders: getOrderHistory(),
+        orders: getAllStoreOrders(),
         customers: getRegisteredCustomers(),
         exportedAt: new Date().toISOString()
       };
@@ -3165,6 +3734,243 @@ function initAdminSettings() {
         alert('Catalog reset to official flyer defaults!');
       }
     });
+  }
+}
+
+// ==========================================================================
+// 14B. CUSTOMER FEEDBACK & REVIEWS MANAGEMENT (admin.html)
+// ==========================================================================
+const SUBLY_FEEDBACK_KEY = 'subly_customer_feedback_v1';
+
+export function getCustomerFeedback() {
+  const saved = SafeStorage.getJSON(SUBLY_FEEDBACK_KEY, null);
+  if (Array.isArray(saved)) {
+    return saved;
+  }
+  return [];
+}
+
+export function saveCustomerFeedback(list) {
+  SafeStorage.setJSON(SUBLY_FEEDBACK_KEY, list);
+  SafeStorage.setString('subly_sync_trigger', String(Date.now()));
+  window.dispatchEvent(new CustomEvent('subly:data-updated', { detail: { type: 'feedback' } }));
+}
+
+function renderAdminFeedback() {
+  const container = document.getElementById('admin-feedback-cards-container');
+  const countTabEl = document.getElementById('admin-feedback-count-tab');
+  const unreadBadgeEl = document.getElementById('feedback-unread-badge');
+  const avgMetricEl = document.getElementById('metric-feedback-avg');
+  const totalMetricEl = document.getElementById('metric-feedback-total');
+  const satMetricEl = document.getElementById('metric-feedback-satisfaction');
+
+  const searchInput = document.getElementById('admin-feedback-search');
+  const ratingFilter = document.getElementById('admin-feedback-filter-rating');
+  const statusFilter = document.getElementById('admin-feedback-filter-status');
+
+  const feedbackList = getCustomerFeedback();
+
+  // 1. Calculate Metrics
+  const totalCount = feedbackList.length;
+  const newCount = feedbackList.filter(f => (f.status || 'New').toLowerCase() === 'new').length;
+  
+  let ratingSum = 0;
+  let satisfiedCount = 0;
+  feedbackList.forEach(f => {
+    const r = parseInt(f.rating || '5', 10);
+    ratingSum += r;
+    if (r >= 4) satisfiedCount++;
+  });
+
+  const avgRating = totalCount > 0 ? (ratingSum / totalCount).toFixed(1) : '5.0';
+  const satisfactionRate = totalCount > 0 ? Math.round((satisfiedCount / totalCount) * 100) : 100;
+
+  if (countTabEl) countTabEl.textContent = totalCount;
+  if (unreadBadgeEl) {
+    unreadBadgeEl.textContent = `${newCount} New`;
+    unreadBadgeEl.style.display = newCount > 0 ? 'inline-block' : 'none';
+  }
+  if (totalMetricEl) totalMetricEl.textContent = totalCount;
+  if (avgMetricEl) avgMetricEl.textContent = `${avgRating} ★`;
+  if (satMetricEl) satMetricEl.textContent = `${satisfactionRate}%`;
+
+  if (!container) return;
+
+  // 2. Filter list
+  const q = (searchInput?.value || '').toLowerCase().trim();
+  const selectedRating = ratingFilter?.value || 'all';
+  const selectedStatus = statusFilter?.value || 'all';
+
+  let filtered = feedbackList.filter(f => {
+    // Search match
+    if (q) {
+      const matchName = (f.customerName || '').toLowerCase().includes(q);
+      const matchPhone = (f.whatsapp || '').toLowerCase().includes(q);
+      const matchCat = (f.category || '').toLowerCase().includes(q);
+      const matchMsg = (f.message || '').toLowerCase().includes(q);
+      if (!matchName && !matchPhone && !matchCat && !matchMsg) return false;
+    }
+
+    // Rating match
+    const r = parseInt(f.rating || '5', 10);
+    if (selectedRating === '5' && r !== 5) return false;
+    if (selectedRating === '4' && r !== 4) return false;
+    if (selectedRating === '3' && r !== 3) return false;
+    if (selectedRating === 'critical' && r > 2) return false;
+
+    // Status match
+    if (selectedStatus !== 'all') {
+      const currentStat = f.status || 'New';
+      if (currentStat.toLowerCase() !== selectedStatus.toLowerCase()) return false;
+    }
+
+    return true;
+  });
+
+  // 3. Render Zero State
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 32px 20px; text-align: center; background: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: var(--radius-md); color: var(--text-muted);">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" style="margin: 0 auto 10px; display: block; opacity: 0.6;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <strong style="display: block; font-size: 0.95rem; color: var(--text-heading); margin-bottom: 4px;">No feedback submissions found</strong>
+        <span style="font-size: 0.82rem;">Reviews submitted by customers on the storefront will appear here with instant 1-click WhatsApp reply messaging.</span>
+      </div>
+    `;
+    return;
+  }
+
+  // 4. Render Feedback Cards
+  container.innerHTML = filtered.map(f => {
+    const safeId = escapeHtml(f.id);
+    const safeName = escapeHtml(f.customerName || 'Valued Customer');
+    const safeWhatsapp = escapeHtml(f.whatsapp || '');
+    const safeCategory = escapeHtml(f.category || 'General Experience');
+    const safeMessage = escapeHtml(f.message || '');
+    const currentStatus = f.status || 'New';
+    const ratingVal = parseInt(f.rating || '5', 10);
+    const initial = safeName.charAt(0).toUpperCase();
+
+    // Date formatting
+    let dateStr = 'Recent';
+    if (f.createdAt) {
+      try {
+        const d = new Date(f.createdAt);
+        dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      } catch (err) {}
+    }
+
+    // Stars HTML (Gold SVG Stars)
+    let starsHtml = '';
+    for (let i = 1; i <= 5; i++) {
+      const isFilled = i <= ratingVal;
+      starsHtml += `<svg viewBox="0 0 24 24" width="16" height="16" fill="${isFilled ? '#f59e0b' : 'none'}" stroke="${isFilled ? '#f59e0b' : 'currentColor'}" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+    }
+
+    // 1-Click WhatsApp Reply Link
+    let waActionHtml = '';
+    if (safeWhatsapp) {
+      const cleanPhone = safeWhatsapp.replace(/[^\d]/g, '');
+      const replyMsg = `Hi ${f.customerName}! Thank you for your feedback on Subly (${f.category}). Regarding your review: "${f.message.slice(0, 75)}${f.message.length > 75 ? '...' : ''}" — reaching out from our support team!`;
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(replyMsg)}`;
+      waActionHtml = `
+        <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-forest btn-sm" style="padding: 4px 10px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 5px;" title="Reply to customer directly via WhatsApp">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 6.45 17.5 2 12.04 2Z"/></svg>
+          <span>WhatsApp Reply</span>
+        </a>
+      `;
+    }
+
+    return `
+      <div class="admin-feedback-card" data-id="${safeId}">
+        <div class="admin-feedback-card-header">
+          <div class="admin-feedback-user-info">
+            <div class="nav-user-avatar" style="width: 36px; height: 36px; font-size: 0.9rem; flex-shrink: 0;">${initial}</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <strong style="color: var(--text-heading); font-size: 0.92rem;">${safeName}</strong>
+                ${safeWhatsapp ? `<span style="font-size: 0.78rem; color: var(--green-600); font-weight: 600;">${safeWhatsapp}</span>` : '<span style="font-size: 0.75rem; color: var(--text-muted);">Storefront Visitor</span>'}
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <div class="admin-feedback-stars" title="${ratingVal} of 5 Stars">${starsHtml}</div>
+                <span class="feedback-cat-tag">${safeCategory}</span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 0.76rem; color: var(--text-muted);">${dateStr}</span>
+            ${waActionHtml}
+          </div>
+        </div>
+
+        <div class="admin-feedback-msg">
+          &ldquo;${safeMessage}&rdquo;
+        </div>
+
+        <div class="admin-feedback-footer">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;">Status:</label>
+            <select class="form-control-compact feedback-status-select" data-id="${safeId}" style="padding: 2px 8px; font-size: 0.75rem; width: auto; height: auto;">
+              <option value="New" ${currentStatus === 'New' ? 'selected' : ''}>New</option>
+              <option value="Reviewed" ${currentStatus === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
+              <option value="Resolved" ${currentStatus === 'Resolved' ? 'selected' : ''}>Resolved</option>
+            </select>
+          </div>
+
+          <div class="admin-feedback-actions">
+            <button type="button" class="admin-btn-icon btn-delete btn-delete-feedback" data-id="${safeId}" data-name="${safeName}" title="Delete Feedback" style="width: 28px; height: 28px;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 5. Attach Event Listeners (Status Change & Delete)
+  container.querySelectorAll('.feedback-status-select').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const fbId = select.dataset.id;
+      const newStatus = e.target.value;
+      const allFeedback = getCustomerFeedback();
+      const target = allFeedback.find(f => f.id === fbId);
+      if (target) {
+        target.status = newStatus;
+        saveCustomerFeedback(allFeedback);
+        CloudSync.updateFeedbackStatus(fbId, newStatus);
+        renderAdminFeedback();
+        renderAdminOverview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-delete-feedback').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fbId = btn.dataset.id;
+      const custName = btn.dataset.name;
+      if (confirm(`Are you sure you want to delete feedback from "${custName}"?`)) {
+        const allFeedback = getCustomerFeedback().filter(f => f.id !== fbId);
+        saveCustomerFeedback(allFeedback);
+        CloudSync.deleteFeedback(fbId);
+        renderAdminFeedback();
+        renderAdminOverview();
+      }
+    });
+  });
+
+  // Attach search & filter listeners once
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderAdminFeedback());
+  }
+
+  if (ratingFilter && !ratingFilter.dataset.bound) {
+    ratingFilter.dataset.bound = 'true';
+    ratingFilter.addEventListener('change', () => renderAdminFeedback());
+  }
+
+  if (statusFilter && !statusFilter.dataset.bound) {
+    statusFilter.dataset.bound = 'true';
+    statusFilter.addEventListener('change', () => renderAdminFeedback());
   }
 }
 
@@ -3209,8 +4015,341 @@ export function getRegisteredCustomers() {
   return [];
 }
 
+// ==========================================================================
+// CLOUDFLARE D1 DATABASE CLIENT & CLOUD SYNCHRONIZATION ENGINE
+// ==========================================================================
+export function getApiEndpoint(path) {
+  if (typeof window === 'undefined') return path;
+  const host = window.location.hostname;
+  // If running on Vercel, Cloudflare, or custom domains
+  if (host.includes('vercel.app') || host.includes('workers.dev') || host.includes('subly.store') || host.includes('subly.com.ng')) {
+    return path;
+  }
+  // If running on Vite dev server port 5173 (which proxies /api)
+  if (window.location.port === '5173') {
+    return path;
+  }
+  // Otherwise (e.g. Apache XAMPP on localhost, 127.0.0.1, or file://)
+  return `https://subly.alameens2008.workers.dev${path}`;
+}
+
+export const CloudSync = {
+  async fetchCustomers() {
+    try {
+      const res = await fetch(getApiEndpoint('/api/customers'));
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.customers)) {
+          const remoteList = data.customers;
+          const localList = getRegisteredCustomers();
+
+          // Intelligent two-way merge by WhatsApp phone number
+          const mergedMap = new Map();
+
+          // 1. Add all remote customers from Cloudflare D1
+          remoteList.forEach(c => {
+            const phone = (c.whatsapp || '').replace(/[^\d]/g, '');
+            if (phone) mergedMap.set(phone, c);
+          });
+
+          // 2. Add any customer registered locally that has not reached D1 yet, and push to D1
+          localList.forEach(c => {
+            const phone = (c.whatsapp || '').replace(/[^\d]/g, '');
+            if (phone) {
+              if (!mergedMap.has(phone)) {
+                mergedMap.set(phone, c);
+                // Push local-only customer up to Cloudflare D1
+                CloudSync.syncCustomer(c);
+              } else {
+                // Merge subscriptions from local and remote
+                const existing = mergedMap.get(phone);
+                const combinedSubs = [...(existing.subscriptions || [])];
+                const subIds = new Set(combinedSubs.map(s => s.id));
+                (c.subscriptions || []).forEach(s => {
+                  if (!subIds.has(s.id)) {
+                    combinedSubs.push(s);
+                    subIds.add(s.id);
+                    // Also sync missing subscription to D1
+                    CloudSync.syncSubscription(phone, s);
+                  }
+                });
+                existing.subscriptions = combinedSubs;
+              }
+            }
+          });
+
+          const merged = Array.from(mergedMap.values());
+          SafeStorage.setJSON(SUBLY_USERS_KEY, merged);
+          return merged;
+        }
+      }
+    } catch (e) {
+      console.warn('CloudSync offline fallback for customers:', e);
+    }
+    return getRegisteredCustomers();
+  },
+
+  async syncCustomer(cust) {
+    if (!cust || !cust.whatsapp) return null;
+    try {
+      const res = await fetch(getApiEndpoint('/api/customers'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cust),
+        keepalive: true
+      });
+      return res;
+    } catch (e) {
+      console.warn('CloudSync syncCustomer deferred:', e);
+      return null;
+    }
+  },
+
+  async deleteCustomer(phone) {
+    if (!phone) return null;
+    try {
+      return await fetch(getApiEndpoint(`/api/customers?phone=${encodeURIComponent(phone)}`), {
+        method: 'DELETE',
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync deleteCustomer deferred:', e);
+      return null;
+    }
+  },
+
+  async syncSubscription(customerWhatsapp, sub) {
+    if (!customerWhatsapp || !sub) return null;
+    try {
+      return await fetch(getApiEndpoint('/api/subscriptions'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sub.id,
+          customerWhatsapp,
+          serviceId: sub.serviceId,
+          serviceName: sub.serviceName,
+          logoUrl: sub.logoUrl,
+          planPrice: sub.planPrice,
+          period: sub.period,
+          startDate: sub.startDate,
+          expiryDate: sub.expiryDate,
+          status: sub.status || 'Active'
+        }),
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync syncSubscription deferred:', e);
+      return null;
+    }
+  },
+
+  async deleteSubscription(subId) {
+    if (!subId) return null;
+    try {
+      return await fetch(getApiEndpoint(`/api/subscriptions?id=${encodeURIComponent(subId)}`), {
+        method: 'DELETE',
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync deleteSubscription deferred:', e);
+      return null;
+    }
+  },
+
+  async fetchOrders(targetPhone = null) {
+    try {
+      const activeCust = getActiveCustomer();
+      const isAdmin = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('subly_admin_authenticated') === 'true';
+      
+      let queryParam = '';
+      if (!isAdmin) {
+        const phone = targetPhone || (activeCust ? activeCust.whatsapp : null);
+        if (phone) {
+          queryParam = `?phone=${encodeURIComponent(phone)}`;
+        } else {
+          // If guest and no active phone, do not pull arbitrary remote orders into guest view
+          return getCustomerOrders();
+        }
+      }
+
+      const res = await fetch(getApiEndpoint(`/api/orders${queryParam}`));
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.orders)) {
+          const remoteOrders = data.orders;
+          const localOrders = getAllStoreOrders();
+
+          // Two-way merge by Order ID
+          const ordersMap = new Map();
+          localOrders.forEach(o => { if (o && o.id) ordersMap.set(o.id, o); });
+          remoteOrders.forEach(o => { if (o && o.id) ordersMap.set(o.id, o); });
+
+          // If active user, sync any local-only orders for this customer to Cloudflare D1
+          if (activeCust) {
+            localOrders.forEach(o => {
+              if (o && o.id && isOrderOwnedByCustomer(o, activeCust)) {
+                const foundInRemote = remoteOrders.some(r => r.id === o.id);
+                if (!foundInRemote) {
+                  CloudSync.syncOrder(o);
+                }
+              }
+            });
+          }
+
+          const merged = Array.from(ordersMap.values())
+            .sort((a, b) => {
+              const tA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+              const tB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+              return tB - tA;
+            })
+            .slice(0, 100);
+
+          SafeStorage.setJSON(SUBLY_ORDERS_KEY, merged);
+          return isAdmin ? merged : getCustomerOrders(activeCust);
+        }
+      }
+    } catch (e) {
+      console.warn('CloudSync offline fallback for orders:', e);
+    }
+    return isAdmin ? getAllStoreOrders() : getCustomerOrders();
+  },
+
+  async syncOrder(order) {
+    if (!order || !order.id) return null;
+    try {
+      return await fetch(getApiEndpoint('/api/orders'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order),
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync syncOrder deferred:', e);
+      return null;
+    }
+  },
+
+  async updateOrderStatus(orderId, status) {
+    if (!orderId || !status) return null;
+    try {
+      return await fetch(getApiEndpoint('/api/orders'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, status }),
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync updateOrderStatus deferred:', e);
+      return null;
+    }
+  },
+
+  async fetchFeedback() {
+    try {
+      const res = await fetch(getApiEndpoint('/api/feedback'));
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.feedback)) {
+          const remoteList = data.feedback;
+          const localList = getCustomerFeedback();
+
+          // Two-way merge by Feedback ID
+          const fbMap = new Map();
+          remoteList.forEach(f => { if (f.id) fbMap.set(f.id, f); });
+          localList.forEach(f => {
+            if (f.id && !fbMap.has(f.id)) {
+              fbMap.set(f.id, f);
+              CloudSync.submitFeedback(f);
+            }
+          });
+
+          const merged = Array.from(fbMap.values())
+            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+            .slice(0, 100);
+          SafeStorage.setJSON(SUBLY_FEEDBACK_KEY, merged);
+          return merged;
+        }
+      }
+    } catch (e) {
+      console.warn('CloudSync offline fallback for feedback:', e);
+    }
+    return getCustomerFeedback();
+  },
+
+  async submitFeedback(fb) {
+    if (!fb || !fb.customerName || !fb.message) return null;
+    try {
+      return await fetch(getApiEndpoint('/api/feedback'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fb),
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync submitFeedback deferred:', e);
+      return null;
+    }
+  },
+
+  async updateFeedbackStatus(id, status) {
+    if (!id || !status) return null;
+    try {
+      return await fetch(getApiEndpoint('/api/feedback'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync updateFeedbackStatus deferred:', e);
+      return null;
+    }
+  },
+
+  async deleteFeedback(id) {
+    if (!id) return null;
+    try {
+      return await fetch(getApiEndpoint(`/api/feedback?id=${encodeURIComponent(id)}`), {
+        method: 'DELETE',
+        keepalive: true
+      });
+    } catch (e) {
+      console.warn('CloudSync deleteFeedback deferred:', e);
+      return null;
+    }
+  }
+};
+
 export function saveRegisteredCustomers(list) {
   SafeStorage.setJSON(SUBLY_USERS_KEY, list);
+  SafeStorage.setString('subly_sync_trigger', String(Date.now()));
+  window.dispatchEvent(new CustomEvent('subly:data-updated', { detail: { type: 'customers' } }));
+
+  // Automatically sync updated customer list to Cloudflare D1
+  if (Array.isArray(list)) {
+    list.forEach(c => CloudSync.syncCustomer(c));
+  }
+}
+
+// Cross-Tab & In-Page Real-Time Synchronization Listener
+window.addEventListener('storage', (e) => {
+  if (e.key === SUBLY_USERS_KEY || e.key === SUBLY_ORDERS_KEY || e.key === SUBLY_FEEDBACK_KEY || e.key === 'subly_sync_trigger' || e.key === 'subly_custom_services') {
+    refreshAdminIfOpen();
+  }
+});
+
+window.addEventListener('subly:data-updated', () => {
+  refreshAdminIfOpen();
+});
+
+function refreshAdminIfOpen() {
+  const dashboardScreen = document.getElementById('admin-dashboard-screen');
+  if (dashboardScreen && dashboardScreen.style.display === 'flex') {
+    renderAdminOverview();
+    renderAdminCustomers();
+    renderAdminFeedback();
+  }
 }
 
 // 1. Dynamic Navbar Customer Auth State
@@ -3331,7 +4470,7 @@ function initCustomerAuthPages() {
 
   // Customer Sign In Page Handler
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const identifier = document.getElementById('login-identifier')?.value?.trim().toLowerCase();
       const password = document.getElementById('login-password')?.value?.trim();
@@ -3344,14 +4483,26 @@ function initCustomerAuthPages() {
         return;
       }
 
-      const users = getRegisteredCustomers();
+      let users = getRegisteredCustomers();
       const cleanIdent = identifier.replace(/[\s\-\(\)\+]/g, '');
 
-      const matchedUser = users.find(u => {
+      let matchedUser = users.find(u => {
         const uPhoneClean = (u.whatsapp || '').replace(/[\s\-\(\)\+]/g, '');
         const uEmail = (u.email || '').toLowerCase();
         return (uPhoneClean === cleanIdent || uEmail === identifier || u.whatsapp === identifier) && u.password === password;
       });
+
+      // If not found in local cache, fetch latest accounts from Cloudflare D1
+      if (!matchedUser) {
+        try {
+          users = await CloudSync.fetchCustomers();
+          matchedUser = users.find(u => {
+            const uPhoneClean = (u.whatsapp || '').replace(/[\s\-\(\)\+]/g, '');
+            const uEmail = (u.email || '').toLowerCase();
+            return (uPhoneClean === cleanIdent || uEmail === identifier || u.whatsapp === identifier) && u.password === password;
+          });
+        } catch (err) {}
+      }
 
       if (matchedUser) {
         setActiveCustomer({
@@ -3371,8 +4522,9 @@ function initCustomerAuthPages() {
 
   // Customer Sign Up Page Handler
   if (signupForm) {
-    signupForm.addEventListener('submit', (e) => {
+    signupForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = document.getElementById('customer-signup-btn');
       const name = document.getElementById('signup-name')?.value?.trim();
       const rawWhatsapp = document.getElementById('signup-whatsapp')?.value?.trim();
       const email = document.getElementById('signup-email')?.value?.trim() || '';
@@ -3403,6 +4555,11 @@ function initCustomerAuthPages() {
         return;
       }
 
+      // Check cloud database first to ensure no duplicate
+      try {
+        await CloudSync.fetchCustomers();
+      } catch (err) {}
+
       const users = getRegisteredCustomers();
       const existingUser = users.find(u => (u.whatsapp || '').replace(/[^\d]/g, '') === phoneDigits);
 
@@ -3414,16 +4571,22 @@ function initCustomerAuthPages() {
         return;
       }
 
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Creating Account & Syncing...</span>';
+      }
+
       const newUser = {
         id: 'cust-' + Date.now(),
         name,
         whatsapp: rawWhatsapp,
         email,
         password,
+        subscriptions: [],
         registeredAt: new Date().toISOString()
       };
 
-      users.push(newUser);
+      users.unshift(newUser);
       saveRegisteredCustomers(users);
 
       // Set active session
@@ -3432,6 +4595,13 @@ function initCustomerAuthPages() {
         whatsapp: newUser.whatsapp,
         email: newUser.email
       });
+
+      // Synchronously write to Cloudflare D1 so that it is persisted BEFORE navigation!
+      try {
+        await CloudSync.syncCustomer(newUser);
+      } catch (syncErr) {
+        console.warn('Sync on signup failed:', syncErr);
+      }
 
       alert(`Welcome to Subly, ${name}! Your account is now active.`);
       window.location.href = 'order.html';
@@ -3495,14 +4665,23 @@ function initStickyMobileCta() {
 // 5. Dedicated Thank You Confirmation Page Handler
 function initThankYouPage() {
   const params = new URLSearchParams(window.location.search);
-  const recentOrders = SafeStorage.getJSON('subly_customer_orders_v1', []);
-  const latestOrder = recentOrders[0] || {};
+  const paramOrderId = params.get('order_id');
+  const allOrders = getAllStoreOrders();
+  const currentCustomer = getActiveCustomer();
+  const myOrders = getCustomerOrders(currentCustomer);
 
-  const orderId = params.get('order_id') || latestOrder.id || 'SBL-' + Math.floor(10000 + Math.random() * 90000);
-  const serviceName = params.get('service') || latestOrder.serviceName || 'Premium Subscription Plan';
-  const price = params.get('price') || latestOrder.price || 'Direct Quote';
-  const customerName = params.get('name') || latestOrder.customerName || 'Valued Customer';
-  const waUrl = latestOrder.waUrl || `https://wa.me/2347047929177?text=${encodeURIComponent(`Hi Subly! I submitted order ${orderId} for ${serviceName}. Please activate my account.`)}`;
+  let targetOrder = null;
+  if (paramOrderId) {
+    targetOrder = allOrders.find(o => o.id === paramOrderId) || myOrders.find(o => o.id === paramOrderId);
+  } else if (myOrders.length > 0) {
+    targetOrder = myOrders[0];
+  }
+
+  const orderId = paramOrderId || targetOrder?.id || (myOrders.length > 0 ? myOrders[0].id : ('SBL-' + Math.floor(10000 + Math.random() * 90000)));
+  const serviceName = params.get('service') || targetOrder?.serviceName || (myOrders.length > 0 ? myOrders[0].serviceName : 'Premium Subscription Plan');
+  const price = params.get('price') || targetOrder?.price || (myOrders.length > 0 ? myOrders[0].price : 'Direct Quote');
+  const customerName = params.get('name') || targetOrder?.customerName || currentCustomer?.name || 'Valued Customer';
+  const waUrl = targetOrder?.waUrl || `https://wa.me/2347047929177?text=${encodeURIComponent(`Hi Subly! I submitted order ${orderId} for ${serviceName}. Please activate my account.`)}`;
 
   const idEl = document.getElementById('ty-order-id');
   const serviceEl = document.getElementById('ty-service-name');
@@ -3526,6 +4705,157 @@ function initThankYouPage() {
       }).catch(() => {
         alert(`Order Reference: ${orderId}`);
       });
+    });
+  }
+}
+
+// ==========================================================================
+// 6. STOREFRONT FEEDBACK & REVIEWS CONTROLLER (index.html)
+// ==========================================================================
+function initStorefrontFeedback() {
+  const form = document.getElementById('storefront-feedback-form');
+  const starSelector = document.getElementById('feedback-star-selector');
+  const starHint = document.getElementById('star-rating-hint');
+  const ratingInput = document.getElementById('feedback-rating-val');
+  const nameInput = document.getElementById('feedback-name');
+  const whatsappInput = document.getElementById('feedback-whatsapp');
+  const categorySelect = document.getElementById('feedback-category');
+  const messageInput = document.getElementById('feedback-message');
+  const statusBanner = document.getElementById('feedback-status-msg');
+  const submitBtn = document.getElementById('feedback-submit-btn');
+  const successCard = document.getElementById('feedback-success-card');
+  const resetBtn = document.getElementById('feedback-reset-btn');
+
+  if (!form) return;
+
+  // Auto-fill logged-in customer details if active session exists
+  const currentCustomer = getActiveCustomer();
+  if (currentCustomer) {
+    if (nameInput && !nameInput.value && currentCustomer.name) {
+      nameInput.value = currentCustomer.name;
+    }
+    if (whatsappInput && !whatsappInput.value && currentCustomer.whatsapp) {
+      whatsappInput.value = currentCustomer.whatsapp;
+    }
+  }
+
+  const ratingHints = {
+    1: '1 Star — Poor experience',
+    2: '2 Stars — Needs improvement',
+    3: '3 Stars — Satisfactory / Decent',
+    4: '4 Stars — Very good experience',
+    5: '5 Stars — Outstanding service'
+  };
+
+  // Star selector interaction
+  if (starSelector) {
+    const starBtns = starSelector.querySelectorAll('.star-btn');
+    starBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const starVal = parseInt(btn.dataset.star || '5', 10);
+        if (ratingInput) ratingInput.value = starVal;
+        if (starHint) starHint.textContent = ratingHints[starVal] || `${starVal} Stars`;
+
+        starBtns.forEach(b => {
+          const bVal = parseInt(b.dataset.star || '0', 10);
+          if (bVal <= starVal) {
+            b.classList.add('active');
+          } else {
+            b.classList.remove('active');
+          }
+        });
+      });
+    });
+  }
+
+  // Form submission handler
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (statusBanner) statusBanner.style.display = 'none';
+
+    const name = nameInput?.value?.trim();
+    const whatsapp = whatsappInput?.value?.trim() || '';
+    const ratingVal = parseInt(ratingInput?.value || '5', 10);
+    const category = categorySelect?.value || 'General Experience';
+    const message = messageInput?.value?.trim();
+
+    if (!name || name.length < 2) {
+      if (statusBanner) {
+        statusBanner.style.display = 'block';
+        statusBanner.className = 'feedback-status-banner error';
+        statusBanner.textContent = 'Please enter your name or nickname (at least 2 characters).';
+      }
+      return;
+    }
+
+    if (!message || message.length < 5) {
+      if (statusBanner) {
+        statusBanner.style.display = 'block';
+        statusBanner.className = 'feedback-status-banner error';
+        statusBanner.textContent = 'Please write a short review or feedback message (at least 5 characters).';
+      }
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Submitting Feedback...</span>';
+    }
+
+    const newFeedback = {
+      id: 'fb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      customerName: name,
+      whatsapp,
+      rating: ratingVal,
+      category,
+      message,
+      status: 'New',
+      createdAt: new Date().toISOString()
+    };
+
+    // Save to local SafeStorage
+    const currentList = getCustomerFeedback();
+    currentList.unshift(newFeedback);
+    saveCustomerFeedback(currentList);
+
+    // Sync directly to Cloudflare D1
+    try {
+      await CloudSync.submitFeedback(newFeedback);
+    } catch (err) {
+      console.warn('Feedback cloud sync deferred:', err);
+    }
+
+    // Toggle view to success card
+    form.style.display = 'none';
+    if (successCard) successCard.style.display = 'block';
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        <span>Submit Feedback</span>
+      `;
+    }
+  });
+
+  // Reset button to allow submitting another review
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      if (ratingInput) ratingInput.value = '5';
+      if (starHint) starHint.textContent = ratingHints[5];
+      if (starSelector) {
+        starSelector.querySelectorAll('.star-btn').forEach(b => b.classList.add('active'));
+      }
+      if (statusBanner) statusBanner.style.display = 'none';
+      if (successCard) successCard.style.display = 'none';
+      form.style.display = 'block';
+
+      // Keep user's name/whatsapp if logged in
+      if (currentCustomer) {
+        if (nameInput && currentCustomer.name) nameInput.value = currentCustomer.name;
+        if (whatsappInput && currentCustomer.whatsapp) whatsappInput.value = currentCustomer.whatsapp;
+      }
     });
   }
 }
